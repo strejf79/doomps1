@@ -667,14 +667,59 @@ int psxcd_waiting_for_pause(void)//8003FAE4
 
 int psxcd_read(void *destptr,int readbytes,PsxCd_File *fileptr)//8003FB90
 {
-    int retbytes;
+    int remaining = readbytes;
+    int lba = CdPosToInt(&fileptr->new_io_loc);
+    int offset = fileptr->io_block_offset;
+    unsigned char *dest = destptr;
 
-    retbytes = psxcd_async_read(destptr, readbytes, fileptr);
+    while (remaining > 0)
+    {
+        int amount;
+        int sectors;
 
-    // wait for Async
-    while(psxcd_async_on());
+        CdIntToPos(lba, &fileptr->new_io_loc);
 
-    return(retbytes);
+        if (offset == 0 && remaining >= CD_ROM_SECTOR_SIZE &&
+            !((unsigned long)dest & 3))
+        {
+            sectors = remaining / CD_ROM_SECTOR_SIZE;
+            if (!CdControlB(CdlSetloc, &fileptr->new_io_loc,
+                fileptr->io_result))
+                return readbytes - remaining;
+            if (!CdReadRetry(sectors, (u_long *)dest, CdlModeSpeed, 3) ||
+                CdReadSync(0, fileptr->io_result) < 0)
+                return readbytes - remaining;
+            amount = sectors * CD_ROM_SECTOR_SIZE;
+            dest += amount;
+            remaining -= amount;
+            lba += sectors;
+            continue;
+        }
+
+        if (!CdControlB(CdlSetloc, &fileptr->new_io_loc,
+            fileptr->io_result))
+            return readbytes - remaining;
+        if (!CdReadRetry(1, (u_long *)sectorbuf, CdlModeSpeed, 3) ||
+            CdReadSync(0, fileptr->io_result) < 0)
+            return readbytes - remaining;
+
+        amount = CD_ROM_SECTOR_SIZE - offset;
+        if (amount > remaining)
+            amount = remaining;
+        psxcd_memcpy(dest, sectorbuf + offset, amount);
+        dest += amount;
+        remaining -= amount;
+        offset += amount;
+        if (offset == CD_ROM_SECTOR_SIZE)
+        {
+            offset = 0;
+            lba++;
+        }
+    }
+
+    fileptr->io_block_offset = offset;
+    CdIntToPos(lba, &fileptr->new_io_loc);
+    return readbytes;
 }
 
 void psxcd_async_read_cancel(void)//8003FBC8
@@ -1033,32 +1078,13 @@ void psxcd_play_at_andloop(int track,
                            int loopstartfadeuptime)//80040658
 {
 #if _CD_VERSION_ == 1
-
-    if(*(int *)&loc[track]==0)
-    {
-        return;
-    }
-
-    psxcd_set_audio_mode();
-
-    playvol = vol;
-
-    CdIntToPos((CdPosToInt(&loc[track]) + sectoroffset),&cdloc);
-
-    playcount = 0;
-    playflag = 1;
+    psxcd_play_at(track, vol, sectoroffset);
     loopflag = 1;
     looptrack = tracktoloop;
     loopvol = volforloop;
     loopsectoroffset = loopstartsectoroffset;
     loopfadeuptime = loopstartfadeuptime;
-    seeking_for_play = 1;
     playfadeuptime = fadeuptime;
-    CdControlF(cdl_com=CdlSeekP, (u_char *)&cdloc);
-
-    lastloc = loc[track];
-    beginloc = lastloc;
-    newloc = lastloc;
 
 #endif
 }
@@ -1066,33 +1092,35 @@ void psxcd_play_at_andloop(int track,
 void psxcd_play_at(int track, int vol, int sectoroffset)//800407B8
 {
 #if _CD_VERSION_ == 1
+    CdlLOC toc[100];
+    u_char mode = CdlModeDA | CdlModeAP;
+    u_char track_bcd = itob(track);
 
-    if(*(int *)&loc[track]==0)
-    {
-        return;
-    }
-
-    playflag = 0;
-    loopflag = 0;
-    seeking_for_play = 0;
-
-    psxcd_set_audio_mode();
-
-    playvol = vol;
-
-    CdIntToPos((CdPosToInt(&loc[track]) + sectoroffset),&cdloc);
-
-    playcount = 0;
     playflag = 1;
     loopflag = 0;
-    seeking_for_play = 1;
+    seeking_for_play = 0;
+    playvol = vol;
+    playcount = 0;
     playfadeuptime = 0;
 
-    CdControlF(cdl_com=CdlSeekP, (u_char *)&cdloc);
+    psxspu_set_cd_vol(vol);
+    psxspu_setcdmixon();
+    CdControlB(CdlSetmode, &mode, check_result);
 
-    lastloc = loc[track];
-    beginloc = lastloc;
-    newloc = lastloc;
+    if (sectoroffset && CdGetToc(toc) >= track)
+    {
+        CdIntToPos(CdPosToInt(&toc[track - 1]) + sectoroffset, &cdloc);
+        CdControlB(CdlSetloc, &cdloc, check_result);
+        CdControl(cdl_com=CdlPlay, 0, check_result);
+    }
+    else
+    {
+        CdControl(cdl_com=CdlPlay, &track_bcd, check_result);
+    }
+
+    *(int *)&beginloc = 0;
+    *(int *)&newloc = 0;
+    *(int *)&lastloc = 0;
 
 #endif
 }
@@ -1175,20 +1203,9 @@ void psxcd_stop(void)//80040AC8
 
     *(int *)&lastloc = 0;
 
-    #if _CD_SPU_LINK_ == 1
-     if(psxspu_get_cd_vol())
-     {
-         psxspu_start_cd_fade(FADE_TIME,0);
-         while(psxspu_get_cd_fade_status());
-     }
-    #endif
-
-    psxcd_sync();
-
-    // pause seems to be better than stop here because
-    // play is more stable after a pause
-    waiting_for_pause = 1;
-    CdControlF(cdl_com=CdlPause, 0);
+    psxspu_setcdmixoff();
+    CdControlB(cdl_com=CdlPause, 0, check_result);
+    waiting_for_pause = 0;
 
 #endif
 }
@@ -1250,10 +1267,23 @@ void psxcd_restart(int vol)//80040BE4
 int psxcd_elapsed_sectors(void)//80040C6C
 {
 #if _CD_VERSION_ == 1
+    CdlLOCINFOP physical;
+    CdlLOC absolute;
+
+    if (!CdControlB(CdlGetlocP, 0, (u_char *)&physical))
+        return 0;
+    absolute.minute = physical.minute;
+    absolute.second = physical.second;
+    absolute.sector = physical.sector;
+    absolute.track = 0;
+
     if(*(int *)&beginloc==0)
     {
+        beginloc = absolute;
+        newloc = absolute;
         return(0);
     }
+    newloc = absolute;
     return(CdPosToInt(&newloc)-CdPosToInt(&beginloc));
 #else
     return(0);

@@ -559,6 +559,7 @@ void P_Start (void)//L80029554()
 		psxcd_play_at_andloop(CD_TRACK[cdmusic_credits_demo],CDVolume,0,0,CD_TRACK[cdmusic_credits_demo],CDVolume,0,0);
 	else
 		S_StartMusic();
+	printf("PORT PASS playable-map map=%d demo=%d\n", gamemap, demoplayback);
 }
 
 void P_Stop (int exit)//L800295EC()

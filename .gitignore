@@ -1,0 +1,18 @@
+/build/
+/toolchain/
+/.vscode/
+/modern/.duckstation-path
+
+# Retail disc contents and generated images are local-only.
+/PSXDOOM/GAME/CD/*
+!/PSXDOOM/GAME/CD/**/tmp.txt
+!/PSXDOOM/GAME/CD/PSXDOOM/ABIN/MOVIE.STR
+/PSXDOOM/GAME/MAIN.EXE
+/PSXDOOM/GAME/*.bin
+/PSXDOOM/GAME/*.cue
+/PSXDOOM/GAME/doom.txt
+/PSXDOOM/GAME/doom_.txt
+
+# Generated absolute-sector table copied back by mkpsxiso.
+/PSXDOOM/GAME/PSXCDABS.C
+/PSXDOOM/GAME/PSXCDABS.H

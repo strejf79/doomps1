@@ -123,8 +123,11 @@ void PSX_INIT(void)//L80032804()
         CombSetBPS(38400);
     }
 
+    printf("PORT psx-init first-render\n");
     DrawRender();
+    printf("PORT psx-init second-render\n");
     DrawRender();
+    printf("PORT psx-init display-ready\n");
 
     SetDispMask(1);
 }
@@ -138,6 +141,7 @@ void I_Error(char *error, ...)//L800329BC
 	va_start (args, error);
 	D_vsprintf (buffer, error, args);
 	va_end (args);
+	printf("PORT FATAL: %s\n", buffer);
 	DrawRender();
 
 	FntLoad(960, 256); // load the font from the BIOS into the framebuffer

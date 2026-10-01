@@ -50,18 +50,24 @@ void D_DoomMain (void) //L80012274()
 	byte		*data;
 	data = (byte *)tempbuffer;
 
-	//printf("MASTER EDITION BY GEC\n");
+	printf("PORT START\n");
 
 	PSX_INIT();
+	printf("PORT PASS psx-init\n");
 
 	/* WMS Sound System Init */
 	PsxSoundInit(SetVolPsx(SfxVolume), SetVolPsx(MusVolume), data);
+	printf("PORT PASS sound-init\n");
 
 	Z_Init();
+	printf("PORT PASS zone-init\n");
 	Init_Vram_Cache();
 	W_Init();
+	printf("PORT PASS wad-init\n");
 	R_Init();
+	printf("PORT PASS renderer-init\n");
 	ST_Init();
+	printf("PORT PASS status-init\n");
 
 	gamevbls = 0;
 	gametic = 0;
@@ -111,6 +117,7 @@ int RunDemo(char *demoname)//L80012424()
 	int pfile;
 	int exit;
 
+	printf("PORT demo-start id=%d\n", (int)demoname);
 	demo_p = Z_Alloc(0x4000, PU_STATIC, 0);
 
 	pfile = OpenFile(demoname);
@@ -118,6 +125,7 @@ int RunDemo(char *demoname)//L80012424()
 	CloseFile(pfile);
 
 	exit = G_PlayDemoPtr();
+	printf("PORT PASS demo-complete id=%d\n", (int)demoname);
 	Z_Free(demo_p);
 
 	return exit;

@@ -62,6 +62,7 @@ void G_DoLoadLevel (void) //L80012E04()
 	P_SetupLevel(gamemap, gameskill);
 	Z_CheckHeap(mainzone);
 	gameaction = ga_nothing;
+	printf("PORT PASS level-loaded map=%d skill=%d\n", gamemap, gameskill);
 	//printf("G_DoLoadLevel");
 }
 

@@ -28,11 +28,14 @@ void T_Start(void)//L80034EA0()
 
 	Valloc_Init();
 	Z_FreeTags(mainzone,PU_CACHE);//test
+	printf("PORT title cache-loading\n");
 
 	W_CacheLumpName("LOADING", PU_STATIC, 0);
 	ImageToVram(&loadingpic, "LOADING", 0);
 	P_LoadingPlaque(&loadingpic, 95, 109, palette[16]);
+	printf("PORT title plaque-ready\n");
 	S_Lcd_Load(0);
+	printf("PORT title sound-ready\n");
 
 	W_CacheLumpName("MARB01", PU_STATIC, 0);
 	W_CacheLumpName("BUTTONS", PU_STATIC, 0);
@@ -44,6 +47,7 @@ void T_Start(void)//L80034EA0()
 	ImageToVram(&neterrpic, "NETERR", 0);
 	ImageToVram(&pausepic, "PAUSE", 0);
 	ImageToVram(&titlepic, "TITLE", 0);
+	printf("PORT title images-ready\n");
 
 	lump = R_TextureNumForName("SKY09");
 	skytexturep = &textures[lump];
@@ -52,11 +56,14 @@ void T_Start(void)//L80034EA0()
 	W_CacheLumpNum(skytexturep->lump, PU_CACHE, true);
 
 	TextureCache(skytexturep);
+	printf("PORT title sky-ready\n");
 
 	y_scroll = 250;
 
 	psxcd_play(CD_TRACK[cdmusic_title_screen], CDVolume);
+	printf("PORT title cdda-started\n");
 	do {} while(psxcd_elapsed_sectors() == 0);
+	printf("PORT PASS title-ready\n");
 }
 
 /*

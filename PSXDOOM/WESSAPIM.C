@@ -12,7 +12,7 @@ extern unsigned char	master_mus_volume;	//*L80075835
 extern unsigned char	pan_status;			//*L80075836
 extern unsigned char	release_rate;		//*L80075837
 extern pmasterstat      *pm_stat;           //800A8538
-extern int              SeqOn;              //80075778
+extern volatile int     SeqOn;              //80075778
 
 char wess_master_sfx_volume_get (void)//80049548
 {

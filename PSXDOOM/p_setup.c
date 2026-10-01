@@ -975,7 +975,7 @@ void P_LoadBlocks(char *filename)//L80023698()
 				break;
             }
 
-            (byte *)block += block->size;
+            block = (memblock_t *)((byte *)block + block->size);
         } while (size != 0);
 
         // If everything was loaded ok then link the first block into the heap block list and finish up.

@@ -53,11 +53,11 @@ int Error_module = 0;                   //8007574C
 pmasterstat *pm_stat;                   //800A8538
 
 //WESSARC.C-------------------------------------------
-int SeqOn = 0;
-unsigned long millicount = 0;
+volatile int SeqOn = 0;
+volatile unsigned long millicount = 0;
 unsigned long millisum = 0;
 
-int WessTimerActive = 0;
+volatile int WessTimerActive = 0;
 
 int T2counter = 0;
 

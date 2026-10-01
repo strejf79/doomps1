@@ -557,13 +557,18 @@ void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
     PsxCd_File *fileptr;
     //char *wmd_data;
 
+    printf("PORT sound wess-init\n");
     wess_init();
+    printf("PORT sound cd-init\n");
     psxcd_init();
+    printf("PORT sound cd-ready\n");
 
     fileptr = psxcd_open((char*)_DOOMSND_WMD);
+    printf("PORT sound module-open size=%d\n", fileptr->file.size);
 
     psxcd_read(data, fileptr->file.size, fileptr);
 	psxcd_close(fileptr);
+    printf("PORT sound module-read\n");
 
 	S_InitBlock(&doomsfxblk);
 	S_InitBlock(&mapsfxblk);
@@ -571,6 +576,7 @@ void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
 	//Init wmd_data
 	//wmd_data = Z_Alloc(0x1e000, PU_STATIC, 0);
 	wess_load_module(data, mem_pntr, mem_size, settings_list);
+    printf("PORT sound module-loaded\n");
 
 	//printf("wess_dig_lcd_loader_init\n");
 	wess_dig_lcd_loader_init(wess_get_master_status());
@@ -582,6 +588,7 @@ void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
 	//printf("wess_get_wmd_end %X\n", (int)wess_get_wmd_end);
 	trackptr = wess_get_wmd_end();
 	trackptr += wess_seq_range_load(0, 90, wess_get_wmd_end());
+    printf("PORT sound sequences-loaded\n");
 	//printf("trackptr %X\n", (int)trackptr);
 
     //Free wmd_data tmp
@@ -592,6 +599,7 @@ void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
 
     sram_load = 0;
     sram_pos += wess_dig_lcd_load((char *)_DOOMSFX_LCD,(void *)SRAM_START, &doomsfxblk, 0);
+    printf("PORT sound samples-loaded\n");
     //printf("sram_pos %d\n",sram_pos);
     sram_load = 1;
 }
