@@ -32,7 +32,7 @@ int	drawsync1;//80077FE4
 int	drawsync2;//80077F3C
 extern int	v_sync;//80077CC8
 
-#define OTSIZE	(1<<14)//16384
+#define OTSIZE	(1<<15)//32768; avoids the broken mid-frame ring wrap
 unsigned long	ot[OTSIZE];//80086378 psxdoom ot
 unsigned long	*sys_ot[2] = {ot, ot};//off_80077A44[0], off_80077A48[1]
 
@@ -70,6 +70,8 @@ int V_PagFlags = 0;//*(r28 + 1576)//80077A38
 
 int main()
 {
+	extern void PlayIntroFMV(void);
+	PlayIntroFMV();
 	D_DoomMain ();
 	return (0);
 }

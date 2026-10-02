@@ -515,7 +515,6 @@ int P_Ticker (void)//800292E4
 			P_PlayerThink(pl);
 		}
 	}
-
 	return gameaction; // may have been set to ga_died, ga_completed, or ga_secretexit
 }
 

@@ -9,6 +9,7 @@ project(
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+option(PSXDOOM_SHOW_FPS "Draw the in-game FPS counter" OFF)
 
 add_compile_options(
 	-Wall
@@ -47,10 +48,14 @@ set_source_files_properties(${DOOM_SOURCES} PROPERTIES LANGUAGE C)
 psn00bsdk_add_executable(psxdoom GPREL
 	${DOOM_SOURCES}
 	src/psyq_compat.c
+	src/intro_fmv.c
 )
 target_include_directories(psxdoom PRIVATE
 	${PROJECT_SOURCE_DIR}/include
 	${DOOM_DIR}
+)
+target_compile_definitions(psxdoom PRIVATE
+	SHOWFPS=$<IF:$<BOOL:${PSXDOOM_SHOW_FPS}>,1,0>
 )
 target_compile_options(psxdoom PRIVATE
 	-fcommon

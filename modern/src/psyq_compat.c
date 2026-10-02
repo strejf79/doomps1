@@ -44,51 +44,31 @@ int PsyqVSync(int mode) {
 }
 
 int PsyqDrawOTag(const unsigned long *tag) {
-	const unsigned long *packet = tag;
-
 	DrawSync(0);
-	for (;;) {
-		unsigned long header = packet[0];
-		unsigned int words = header >> 24;
-		unsigned int next = header & 0x00ffffff;
-		unsigned int i;
-
-		for (i = 0; i < words; i++) {
-			while (!(GPU_GP1 & (1UL << 28)))
-				;
-			GPU_GP0 = packet[i + 1];
-		}
-		if (next == 0x00ffffff)
-			break;
-		packet = (const unsigned long *)(0x80000000UL | next);
-	}
-	return 0;
+	return DrawOTag((const uint32_t *)tag);
 }
 
 int PsyqLoadImage(const RECT *rect, const unsigned long *data) {
 	unsigned int bytes = (unsigned int)rect->w * (unsigned int)rect->h * 2;
-
-	if (bytes & 31) {
-		unsigned int words = (bytes + 3) / 4;
-		unsigned int i;
-
-		/* PSn00bSDK 0.24's DMA uploader hangs unless its byte count is a
-		   multiple of 32. Use the GPU's CPU transfer path for odd/small
-		   rectangles, preserving the exact dimensions. */
-		DrawSync(0);
-		GPU_GP0 = 0xa0000000;
-		GPU_GP0 = ((unsigned int)(unsigned short)rect->y << 16)
-			| (unsigned short)rect->x;
-		GPU_GP0 = ((unsigned int)(unsigned short)rect->h << 16)
-			| (unsigned short)rect->w;
-		for (i = 0; i < words; i++) {
-			while (!(GPU_GP1 & (1UL << 28)))
-				;
-			GPU_GP0 = data[i];
-		}
-		return 0;
+	unsigned int words = (bytes + 3) / 4;
+	unsigned int i;
+	/*
+	 * PSn00bSDK 0.24's DMA uploader can leave the GPU in image-transfer mode
+	 * for valid rectangles whose word count does not fit its DMA block shape
+	 * (for example 18x56 = 504 words). CPU transfers handle every rectangle.
+	 */
+	DrawSync(0);
+	GPU_GP0 = 0xa0000000;
+	GPU_GP0 = ((unsigned int)(unsigned short)rect->y << 16)
+		| (unsigned short)rect->x;
+	GPU_GP0 = ((unsigned int)(unsigned short)rect->h << 16)
+		| (unsigned short)rect->w;
+	for (i = 0; i < words; i++) {
+		while (!(GPU_GP1 & (1UL << 28)))
+			;
+		GPU_GP0 = data[i];
 	}
-	return LoadImage(rect, (const uint32_t *)data);
+	return 0;
 }
 
 static void cd_ready_callback(CdlIntrResult status, unsigned char *result) {
