@@ -1,6 +1,7 @@
 /* s_sound.c */
 #include "doomdef.h"
 #include "p_local.h"
+#include "seqload.h"
 
 #define abs(x) ((x)<0 ? -(x) : (x))
 
@@ -555,6 +556,7 @@ void S_UpdateSounds(void) //80041344
 void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
 {
     PsxCd_File *fileptr;
+    unsigned long module_size;
     //char *wmd_data;
 
     printf("PORT sound wess-init\n");
@@ -566,7 +568,8 @@ void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
     fileptr = psxcd_open((char*)_DOOMSND_WMD);
     printf("PORT sound module-open size=%d\n", fileptr->file.size);
 
-    psxcd_read(data, fileptr->file.size, fileptr);
+    module_size = fileptr->file.size;
+    psxcd_read(data, module_size, fileptr);
 	psxcd_close(fileptr);
     printf("PORT sound module-read\n");
 
@@ -582,12 +585,17 @@ void PsxSoundInit(int sfx_volume, int mus_volume, void *data)//8004135C
 	wess_dig_lcd_loader_init(wess_get_master_status());
 
 	//printf("wess_seq_loader_init\n");
+	module_set_memory_source(data, module_size);
 	wess_seq_loader_init(wess_get_master_status(), (char*)_DOOMSND_WMD, YesOpenSeqHandle);
 
 	//printf("wess_seq_range_load\n");
 	//printf("wess_get_wmd_end %X\n", (int)wess_get_wmd_end);
 	trackptr = wess_get_wmd_end();
 	trackptr += wess_seq_range_load(0, 90, wess_get_wmd_end());
+	module_clear_memory_source();
+	/* The range load above used the RAM copy. Reopen the WMD so map music
+	   (sequence 90 and up) is read from the disc instead of sector 0. */
+	wess_seq_loader_bind_cd();
     printf("PORT sound sequences-loaded\n");
 	//printf("trackptr %X\n", (int)trackptr);
 

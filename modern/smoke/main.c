@@ -27,6 +27,7 @@ static uint8_t pad_buffer[2][34];
 static uint32_t guards[4] = {
 	0x13579bdf, 0x2468ace0, 0x55aa55aa, 0xaa55aa55
 };
+static uint32_t upload_pixels[2048];
 
 static void fail(const char *name) {
 	printf("SMOKE FAIL %s\n", name);
@@ -77,6 +78,25 @@ static void test_odd_upload(void) {
 	LoadImage(&rect, pixels);
 	DrawSync(0);
 	printf("SMOKE PASS gpu-odd-upload\n");
+}
+
+static void test_upload_matrix(void) {
+	static const RECT shapes[] = {
+		{ 640, 0, 32, 128 }, /* wall/sky: 2048 words, DMA */
+		{ 672, 0, 32, 64 },  /* flat: 1024 words, DMA */
+		{ 704, 0, 256, 1 },  /* palette: 128 words, DMA */
+		{ 320, 368, 18, 56 } /* dynamic texture: 504 words, CPU fallback */
+	};
+
+	for (unsigned int i = 0; i < sizeof(upload_pixels) / sizeof(upload_pixels[0]); i++)
+		upload_pixels[i] = 0x4210001f ^ i;
+
+	for (unsigned int i = 0; i < sizeof(shapes) / sizeof(shapes[0]); i++) {
+		LoadImage(&shapes[i], upload_pixels);
+		DrawSync(0);
+		check_guards();
+	}
+	printf("SMOKE PASS gpu-upload-matrix\n");
 }
 
 static void test_pad(void) {
@@ -166,6 +186,7 @@ int main(void) {
 	printf("SMOKE START\n");
 	init_video();
 	test_odd_upload();
+	test_upload_matrix();
 	test_pad();
 	test_spu();
 	test_cd();

@@ -20,6 +20,9 @@
 
 #define MINIMUM_TRACK_INDXS_FOR_A_SEQUENCE 4//10
 
+extern int PSX_FreeOldestSfx(void);
+extern void WessRunEngineOnce(void);
+
 #define _ALIGN4_ 1
 
 static int conditional_read(int    readflag,
@@ -1222,7 +1225,6 @@ int wess_seq_structrig (sequence_data *psq_info,
 	//    _disable();
 	SeqOn = 0;
 
-
 	/* find an open sequence structure */
 
 	limit = pm_stat->pmod_info->mod_hdr.seq_work_areas;
@@ -1232,6 +1234,19 @@ int wess_seq_structrig (sequence_data *psq_info,
 		if (!((pm_stat->pseqstattbl + i)->flags & SEQ_ACTIVE))
 		{
 			break;
+		}
+	}
+	if (i == limit)
+	{
+		/* Effects that never reach note-off keep every sequence slot.
+		   Drop the oldest one so a new shot can still play. */
+		if (PSX_FreeOldestSfx())
+		{
+			for (i = 0; i<limit; i++)
+			{
+				if (!((pm_stat->pseqstattbl + i)->flags & SEQ_ACTIVE))
+					break;
+			}
 		}
 	}
 	if (i == limit)
@@ -1310,6 +1325,8 @@ int wess_seq_structrig (sequence_data *psq_info,
 
 		if (tracksfilled)
 		{
+			/* Start the delta-0 note now. Later ticks still come from the timer. */
+			WessRunEngineOnce();
 			return (i + 1);
 		}
 		else {
@@ -1418,9 +1435,9 @@ void wess_seq_stop (int sequence_number)//80043560
 					lpdest = psq_stat->ptrk_indxs;
 					while (lj--)
 					{
-						if (*lpdest != 0xFF)
+						if (*(unsigned char *)lpdest != 0xFF)
 						{
-							ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+							ptmp = (pm_stat->ptrkstattbl + *(unsigned char *)lpdest);
 							CmdFuncArr[ptmp->patchtype][TrkOff](ptmp);
 							if (!--li) break;
 						}
@@ -1471,9 +1488,9 @@ void wess_seq_stopall (void)//800436EC
 				lpdest = psq_stat->ptrk_indxs;
 				while (lj--)
 				{
-					if (*lpdest != 0xFF)
+					if (*(unsigned char *)lpdest != 0xFF)
 					{
-						ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+						ptmp = (pm_stat->ptrkstattbl + *(unsigned char *)lpdest);
 						CmdFuncArr[ptmp->patchtype][TrkOff](ptmp);
 						if (!--li) break;
 					}

@@ -2,6 +2,7 @@ param(
 	[ValidateSet("Doom", "Smoke")]
 	[string]$Target = "Doom",
 	[int]$MaxPasses = 4,
+	[switch]$Profile,
 	[switch]$Clean
 )
 
@@ -13,7 +14,7 @@ $MkPsxIso = Join-Path $GameDir "mkpsxiso.exe"
 $Project = Join-Path $GameDir "PSXDOOMCD.xml"
 $MainExe = Join-Path $GameDir "MAIN.EXE"
 
-& (Join-Path $PSScriptRoot "build.ps1") -Clean:$Clean
+& (Join-Path $PSScriptRoot "build.ps1") -Profile:$Profile -Clean:$Clean
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if ($Target -eq "Smoke") {
@@ -56,7 +57,7 @@ for ($pass = 1; $pass -le $MaxPasses; $pass++) {
 	Write-Host "LBA layout changed on pass $pass; relinking."
 	Copy-Item -Force $GeneratedC $SourceC
 	Copy-Item -Force $GeneratedH $SourceH
-	& (Join-Path $PSScriptRoot "build.ps1")
+	& (Join-Path $PSScriptRoot "build.ps1") -Profile:$Profile
 	if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

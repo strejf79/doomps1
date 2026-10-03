@@ -74,8 +74,9 @@ typedef	struct
 {
 	short		floorheight, ceilingheight; //*, *2
 	char		floorpic[8], ceilingpic[8]; //*4 ,*12
-	char		lightlevel;                 //*20
-	char		colorid;                    //*21
+	/* unsigned: this build uses -fsigned-char, and values above 127 must stay positive */
+	unsigned char	lightlevel;             //*20
+	unsigned char	colorid;                //*21
 	short		special, tag;               //*22, *24
 	short		flags;	                    //Psx Doom *26
 } mapsector_t;

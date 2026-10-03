@@ -1,6 +1,7 @@
 param(
 	[ValidateSet("Release", "Debug")]
 	[string]$Configuration = "Release",
+	[switch]$Profile,
 	[switch]$Clean
 )
 
@@ -47,7 +48,8 @@ $NinjaArg = if ($UseMsysPaths) { Convert-ToMsysPath $Ninja } else { $Ninja }
 	-G Ninja `
 	"-DCMAKE_MAKE_PROGRAM=$NinjaArg" `
 	"-DCMAKE_TOOLCHAIN_FILE=$ToolchainArg" `
-	"-DCMAKE_BUILD_TYPE=$Configuration"
+	"-DCMAKE_BUILD_TYPE=$Configuration" `
+	"-DPSXDOOM_PROFILE=$($Profile.IsPresent.ToString().ToUpperInvariant())"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 & $Cmake --build $BuildArg

@@ -49,6 +49,9 @@ void psxspu_init_reverb(long  rev_mode, short depthleft, short depthright, long 
 
     SpuSetReverbModeParam (&rev_attr);
     SpuSetReverbDepth (&rev_attr);
+    /* Keep the reverb delay lines above the loaded samples. */
+    if (rev_mode > PSXSPU_REV_MODE_OFF && rev_mode <= PSXSPU_REV_MODE_PIPE)
+        SpuSetReverbAddr(SpuGetReverbOffsetAddr[rev_mode]);
 
     if(rev_mode == PSXSPU_REV_MODE_OFF)
     {
@@ -88,6 +91,8 @@ void psxspu_init(void)//800451c0
 		psxspu_initialized = 1;
 
 		SpuInit();
+		/* SpuInit keys every voice onto a dummy block and leaves it on. */
+		SpuSetKey(SPU_OFF, SPU_ALLCH);
 		SpuInitMalloc(MALLOC_MAX, spu_malloc_rec);
 		SpuSetTransMode(SpuTransferByDMA);
 
@@ -179,6 +184,11 @@ void psxspu_fadeengine(void)//8004537C
 			psxspu_master_vol = psxspu_master_vol_fixed >> 16;
 			psxspu_set_master_volume(psxspu_master_vol);
 		}
+
+		/* CD-DA is already being read off the disc. Keep the SPU input open
+		   for as long as the game wants that music audible. */
+		if (psxspu_cd_vol > 0)
+			PsyqSpuOutputCd(psxspu_cd_vol);
 	}
 }
 

@@ -10,6 +10,7 @@ project(
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 option(PSXDOOM_SHOW_FPS "Draw the in-game FPS counter" OFF)
+option(PSXDOOM_PROFILE "Emit low-rate runtime performance counters" OFF)
 
 add_compile_options(
 	-Wall
@@ -44,6 +45,13 @@ set(DOOM_SOURCES
 )
 list(TRANSFORM DOOM_SOURCES PREPEND "${DOOM_DIR}/")
 set_source_files_properties(${DOOM_SOURCES} PROPERTIES LANGUAGE C)
+set_source_files_properties(
+	"${DOOM_DIR}/r_phase1.c"
+	"${DOOM_DIR}/r_phase2.c"
+	"${DOOM_DIR}/r_main.c"
+	"${DOOM_DIR}/psxmain.c"
+	PROPERTIES COMPILE_FLAGS "-O3"
+)
 
 psn00bsdk_add_executable(psxdoom GPREL
 	${DOOM_SOURCES}
@@ -56,6 +64,7 @@ target_include_directories(psxdoom PRIVATE
 )
 target_compile_definitions(psxdoom PRIVATE
 	SHOWFPS=$<IF:$<BOOL:${PSXDOOM_SHOW_FPS}>,1,0>
+	PSXDOOM_PROFILE=$<IF:$<BOOL:${PSXDOOM_PROFILE}>,1,0>
 )
 target_compile_options(psxdoom PRIVATE
 	-fcommon

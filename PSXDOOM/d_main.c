@@ -27,6 +27,40 @@ int	v_sync;                     //80077CC8
 
 #define SetVolPsx(vol) ((int)((vol*0x7f)/100))
 
+#if PSXDOOM_PROFILE
+extern volatile int T2counter;
+static int profile_last_tic = -1;
+static int profile_last_timer;
+static int profile_last_vbl;
+static PsyqProfileStats profile_last_gpu;
+
+static void D_ProfileFrame(void)
+{
+	PsyqProfileStats gpu;
+	int timer;
+	int vbl;
+
+	if (!gametic || gametic == profile_last_tic || (gametic & 15))
+		return;
+
+	PsyqGetProfileStats(&gpu);
+	timer = T2counter;
+	vbl = VSync(-1);
+	printf("PORT PROFILE tic=%d vbl=%d timer=%d uploads=%lu bytes=%lu words=%lu dma=%lu/%lu max=%lu ot=%lu\n",
+		gametic, vbl - profile_last_vbl, timer - profile_last_timer,
+		gpu.upload_calls - profile_last_gpu.upload_calls,
+		gpu.upload_bytes - profile_last_gpu.upload_bytes,
+		gpu.upload_words - profile_last_gpu.upload_words,
+		gpu.upload_dma_calls - profile_last_gpu.upload_dma_calls,
+		gpu.upload_dma_words - profile_last_gpu.upload_dma_words,
+		gpu.upload_max_words, gpu.ot_submissions - profile_last_gpu.ot_submissions);
+	profile_last_tic = gametic;
+	profile_last_timer = timer;
+	profile_last_vbl = vbl;
+	profile_last_gpu = gpu;
+}
+#endif
+
 skill_t    startskill = sk_medium;  //8007742C
 int        startmap   = 1;          //80077430
 gametype_t starttype  = gt_single;  //80077434
@@ -452,6 +486,9 @@ int MiniLoop(void(*start)(void), void(*stop)(int), int(*ticker)(void), void(*dra
 			S_UpdateSounds();
 		}
 
+#if PSXDOOM_PROFILE
+		D_ProfileFrame();
+#endif
 		gamevbls = gametic;
 	}
 

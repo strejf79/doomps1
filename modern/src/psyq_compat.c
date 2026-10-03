@@ -11,6 +11,7 @@ static volatile int cd_ready_status;
 static CdlCB cd_ready_chain;
 static volatile unsigned long vsync_counter;
 static int vsync_initialized;
+static PsyqProfileStats profile_stats;
 
 unsigned long _ramsize = 0x00200000;
 unsigned long _stacksize = 0x00008000;
@@ -44,6 +45,7 @@ int PsyqVSync(int mode) {
 }
 
 int PsyqDrawOTag(const unsigned long *tag) {
+	profile_stats.ot_submissions++;
 	DrawSync(0);
 	return DrawOTag((const uint32_t *)tag);
 }
@@ -52,12 +54,24 @@ int PsyqLoadImage(const RECT *rect, const unsigned long *data) {
 	unsigned int bytes = (unsigned int)rect->w * (unsigned int)rect->h * 2;
 	unsigned int words = (bytes + 3) / 4;
 	unsigned int i;
+	profile_stats.upload_calls++;
+	profile_stats.upload_bytes += bytes;
+	profile_stats.upload_words += words;
+	if (words > profile_stats.upload_max_words)
+		profile_stats.upload_max_words = words;
 	/*
-	 * PSn00bSDK 0.24's DMA uploader can leave the GPU in image-transfer mode
-	 * for valid rectangles whose word count does not fit its DMA block shape
-	 * (for example 18x56 = 504 words). CPU transfers handle every rectangle.
+	 * PSn00bSDK 0.24 rounds non-multiple-of-16 DMA transfers up incorrectly,
+	 * leaving the GPU in image-transfer mode (18x56 = 504 words exposed it).
+	 * Multiples of 16 exactly fit its DMA block shape and are safe.
 	 */
 	DrawSync(0);
+	if (words >= 16 && !(words & 15)) {
+		profile_stats.upload_dma_calls++;
+		profile_stats.upload_dma_words += words;
+		LoadImage2(rect, (const uint32_t *)data);
+		DrawSync(0);
+		return 0;
+	}
 	GPU_GP0 = 0xa0000000;
 	GPU_GP0 = ((unsigned int)(unsigned short)rect->y << 16)
 		| (unsigned short)rect->x;
@@ -69,6 +83,10 @@ int PsyqLoadImage(const RECT *rect, const unsigned long *data) {
 		GPU_GP0 = data[i];
 	}
 	return 0;
+}
+
+void PsyqGetProfileStats(PsyqProfileStats *stats) {
+	*stats = profile_stats;
 }
 
 static void cd_ready_callback(CdlIntrResult status, unsigned char *result) {
@@ -194,6 +212,35 @@ int SpuSetTransMode(int mode) {
 	return (int)SpuSetTransferMode((SPU_TransferMode)mode);
 }
 
+/* Last value written to SPU_CTRL. Reading that register back during a
+   transfer can return 0, and storing that clears unmute and SPU enable. */
+static unsigned short spu_ctrl_shadow = 0xC001;
+static unsigned long spu_key_mask;
+
+static void spu_ctrl_write(unsigned short value) {
+	unsigned short hardware = SPU_CTRL;
+	unsigned short transfer = hardware & 0x0030;
+
+	/* A transfer in progress can read back as 0. Keep the mode we last set. */
+	if (transfer == 0)
+		transfer = spu_ctrl_shadow & 0x0030;
+	spu_ctrl_shadow = (value & (unsigned short)~0x0030) | 0xC000 | transfer;
+	SPU_CTRL = spu_ctrl_shadow;
+}
+
+void PsyqSpuOutputCd(int volume) {
+	if (volume < 0)
+		volume = 0;
+	if (volume > 0x3fff)
+		volume = 0x3fff;
+	SPU_CD_VOL_L = (unsigned short)volume;
+	SPU_CD_VOL_R = (unsigned short)volume;
+	/* Rewriting SPU_CTRL every tick forces the transfer mode to stopped and
+	   aborts sample DMA. The enable bit only needs to be set once. */
+	if (volume > 0 && !(spu_ctrl_shadow & 1))
+		spu_ctrl_write(spu_ctrl_shadow | 1);
+}
+
 void SpuSetCommonAttr(SpuCommonAttr *attr) {
 	if (attr->mask & SPU_COMMON_MVOLL)
 		SPU_MASTER_VOL_L = attr->mvol.left;
@@ -203,13 +250,17 @@ void SpuSetCommonAttr(SpuCommonAttr *attr) {
 		SPU_CD_VOL_L = attr->cd.volume.left;
 	if (attr->mask & SPU_COMMON_CDVOLR)
 		SPU_CD_VOL_R = attr->cd.volume.right;
-	if (attr->mask & SPU_COMMON_CDREV)
-		SpuSetCommonCDReverb(attr->cd.reverb);
+	if (attr->mask & SPU_COMMON_CDREV) {
+		if (attr->cd.reverb)
+			spu_ctrl_write(spu_ctrl_shadow | 0x0004);
+		else
+			spu_ctrl_write(spu_ctrl_shadow & (unsigned short)~0x0004);
+	}
 	if (attr->mask & SPU_COMMON_CDMIX) {
 		if (attr->cd.mix)
-			SPU_CTRL |= 1;
+			spu_ctrl_write(spu_ctrl_shadow | 1);
 		else
-			SPU_CTRL &= (unsigned short)~1;
+			spu_ctrl_write(spu_ctrl_shadow & (unsigned short)~1);
 	}
 }
 
@@ -224,9 +275,9 @@ void SpuSetReverbDepth(SpuReverbAttr *attr) {
 
 void SpuSetReverb(int on) {
 	if (on)
-		SPU_CTRL |= 0x0080;
+		spu_ctrl_write(spu_ctrl_shadow | 0x0080);
 	else
-		SPU_CTRL &= (unsigned short)~0x0080;
+		spu_ctrl_write(spu_ctrl_shadow & (unsigned short)~0x0080);
 }
 
 void SpuSetReverbVoice(int on, unsigned long voices) {
@@ -291,15 +342,39 @@ void SpuSetVoiceAttr(SpuVoiceAttr *attr) {
 	}
 }
 
+void PsyqSpuSetKey(int enable, unsigned long voice_bit) {
+	voice_bit &= 0x00ffffffUL;
+	/* Same split as psxspu.h: key-on and key-off are separate writes.
+	   Setting both latches together makes the new note die on key-off. */
+	if (enable) {
+		spu_key_mask |= voice_bit;
+		SPU_KEY_ON1 = (unsigned short)voice_bit;
+		SPU_KEY_ON2 = (unsigned short)(voice_bit >> 16);
+	} else {
+		spu_key_mask &= ~voice_bit;
+		SPU_KEY_OFF1 = (unsigned short)voice_bit;
+		SPU_KEY_OFF2 = (unsigned short)(voice_bit >> 16);
+	}
+}
+
 void SpuSetKeyOnWithAttr(SpuVoiceAttr *attr) {
+	/* sound/vagsample: stop this channel, program it, then start it.
+	   A key-on is ignored while the voice is still on. */
+	SpuSetKey(SPU_OFF, attr->voice);
 	SpuSetVoiceAttr(attr);
 	SpuSetKey(SPU_ON, attr->voice);
 }
 
 void SpuGetAllKeysStatus(char *status) {
 	int channel;
-	for (channel = 0; channel < 24; channel++)
-		status[channel] = SPU_CH_ADSR_VOL(channel) != 0;
+	for (channel = 0; channel < 24; channel++) {
+		if (!(spu_key_mask & (1UL << channel)))
+			status[channel] = SPU_OFF;
+		else if (SPU_CH_ADSR_VOL(channel) == 0)
+			status[channel] = 2;
+		else
+			status[channel] = SPU_ON;
+	}
 }
 
 void SpuQuit(void) {

@@ -197,9 +197,9 @@ void wess_seq_update_type_special(unsigned long seq_type, TriggerPlayAttr *attr)
 					lpdest = psq_stat->ptrk_indxs;
 					while (lj--)
 					{
-						if (*lpdest != 0xFF)
+						if (*(unsigned char *)lpdest != 0xFF)
 						{
-							ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+							ptmp = (pm_stat->ptrkstattbl + (*(unsigned char *)lpdest));
 							if (attr != 0)
 							{
 								updatetrackstat(ptmp, attr);
@@ -255,9 +255,9 @@ void wess_seq_stoptype (unsigned long type_number)//8004431C
                     lpdest = psq_stat->ptrk_indxs;
                     while(lj--)
                     {
-                        if(*lpdest!=0xFF)
+                        if(*(unsigned char *)lpdest != 0xFF)
                         {
-                            ptmp = (pm_stat->ptrkstattbl+(*lpdest));
+                            ptmp = (pm_stat->ptrkstattbl+(*(unsigned char *)lpdest));
                             CmdFuncArr[ptmp->patchtype][TrkOff](ptmp);
                             if(!--li) break;
                         }

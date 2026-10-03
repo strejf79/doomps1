@@ -19,6 +19,7 @@
 
 #include "kernel.h"
 #include <libspu.h>
+#include <string.h>
 #include "wessarc.h"
 #include "wessapi.h"
 #include "wessseq.h"
@@ -49,6 +50,7 @@ void (**CmdFuncArr[10])(track_status *) = {
 short         GetIntsPerSec(void);
 unsigned long CalcPartsPerInt(short ips,short ppq,short qpm);
 static long WessInterruptHandler(void);
+extern void PSX_ReapSfx(unsigned long age);
 extern void SeqEngine(void);
 
 /* Movido a WESSBASE.C
@@ -70,6 +72,9 @@ static unsigned long    EV2 = 0;                /* interrupt event var */
 // module loader stuff
 
 static Wess_File_IO_Struct module_fileref;//8007EE20
+static unsigned char *module_memory;
+static unsigned long module_memory_size;
+static unsigned long module_memory_pos;
 
 // data loader stuff
 //static unsigned long addr;
@@ -124,6 +129,19 @@ unsigned long CalcPartsPerInt(short ips,short ppq,short qpm)//800438A8
 	return(ppi);
 }
 
+static volatile int wess_irq_busy;
+
+void WessRunEngineOnce(void)
+{
+	EnterCriticalSection();
+	if (SeqOn && !wess_irq_busy) {
+		wess_irq_busy = 1;
+		SeqEngine();
+		wess_irq_busy = 0;
+	}
+	ExitCriticalSection();
+}
+
 static long WessInterruptHandler(void)//800438F8
 {
     unsigned int millitemp;
@@ -132,17 +150,23 @@ static long WessInterruptHandler(void)//800438F8
     //printf("SeqOn %d\n",SeqOn);
     //printf("WessTimerActive %d\n",WessTimerActive);
 
+    if (wess_irq_busy)
+        return (0);
+    wess_irq_busy = 1;
+
     millitemp = millisum + 0x85555;
     T2counter += 1;
     millisum = millitemp & 0xffff;
     millicount += (millitemp >> 0x10);
 
     psxspu_fadeengine();
+    PSX_ReapSfx(3000);
     if (SeqOn)
     {
         //printf("SeqOn %d\n",SeqOn);
         SeqEngine();
     }
+    wess_irq_busy = 0;
     return (0);
 }
 
@@ -155,8 +179,16 @@ void init_WessTimer(void)//8004398C
 
 	EV2 = OpenEvent(RCntCNT2, EvSpINT, EvMdINTR, WessInterruptHandler);
 	EnableEvent(EV2);
-	SetRCnt(RCntCNT2, 34722, RCntMdINTR);   // 33038 is ~120 Hz
+	SetRCnt(RCntCNT2, 34722, RCntMdINTR);
 	StartRCnt(RCntCNT2);
+	/*
+	 * Timer 2 clock bits are 8-9. Nocash sources 1 and 3 are system clock/8.
+	 * DuckStation (this build) treats only bit 9 as clock/8, so source 1 runs
+	 * at the full system clock and the sequencer is about 8x too fast.
+	 * Source 3 (both bits) is clock/8 on both.
+	 */
+	*(volatile unsigned short *)0x1F801124 =
+		(*(volatile unsigned short *)0x1F801124 & (unsigned short)~0x0300) | 0x0300;
 
 	WessTimerActive = 1;
 
@@ -198,6 +230,12 @@ Wess_File_IO_Struct *module_open(char *filename)//80043A90
 {
     Wess_File_IO_Struct *fp;
 
+    if (module_memory)
+    {
+        module_memory_pos = 0;
+        return(&module_fileref);
+    }
+
     fp = psxcd_open(filename);
 
     module_fileref = *fp;
@@ -207,22 +245,62 @@ Wess_File_IO_Struct *module_open(char *filename)//80043A90
 
 int module_read(void *destptr,int readbytes,Wess_File_IO_Struct *fileptr)//80043B04
 {
+    if (module_memory)
+    {
+        if ((unsigned long)readbytes > module_memory_size - module_memory_pos)
+            return(0);
+        memcpy(destptr, module_memory + module_memory_pos, readbytes);
+        module_memory_pos += readbytes;
+        return(readbytes);
+    }
     return(psxcd_read(destptr,readbytes,fileptr));
 }
 
 int module_seek(Wess_File_IO_Struct *fileptr,int seekpos,int seekmode)//80043B24
 {
+    long newpos;
+
+    if (module_memory)
+    {
+        if (seekmode == PSXCD_SEEK_SET)
+            newpos = seekpos;
+        else if (seekmode == PSXCD_SEEK_CUR)
+            newpos = module_memory_pos + seekpos;
+        else
+            newpos = module_memory_size + seekpos;
+        if (newpos < 0 || (unsigned long)newpos > module_memory_size)
+            return(-1);
+        module_memory_pos = (unsigned long)newpos;
+        return(0);
+    }
     return(psxcd_seek(fileptr,seekpos,seekmode));
 }
 
 unsigned long module_tell(Wess_File_IO_Struct *fileptr)//80043B44
 {
+    if (module_memory)
+        return(module_memory_pos);
     return(psxcd_tell(fileptr));
 }
 
 void module_close(Wess_File_IO_Struct *fileptr)//80043B64
 {
-    psxcd_close(fileptr);
+    if (!module_memory)
+        psxcd_close(fileptr);
+}
+
+void module_set_memory_source(void *data, unsigned long size)
+{
+    module_memory = data;
+    module_memory_size = size;
+    module_memory_pos = 0;
+}
+
+void module_clear_memory_source(void)
+{
+    module_memory = 0;
+    module_memory_size = 0;
+    module_memory_pos = 0;
 }
 
 int get_num_Wess_Sound_Drivers(int **settings_tag_lists)//80043B84

@@ -337,6 +337,8 @@ extern volatile int WessTimerActive;
 typedef PsxCd_File Wess_File_IO_Struct;
 typedef PsxCd_File Wess_Data_IO_Struct;
 
+void module_set_memory_source(void *data, unsigned long size);
+void module_clear_memory_source(void);
 extern short GetIntsPerSec(void);
 extern unsigned long CalcPartsPerInt(short ips,short ppq,short qpm);
 

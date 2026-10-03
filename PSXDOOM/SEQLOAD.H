@@ -37,6 +37,11 @@ extern int wess_seq_loader_init(void *input_pm_stat,
                                 char *seqfile,
                                 enum OpenSeqHandleFlag flag);
 
+/* Boot loading reads the module from RAM, which leaves the sequence handle
+   without a disc position. Call this after that RAM load so later sequences
+   (level music) are read from the WMD on the CD. */
+extern void wess_seq_loader_bind_cd(void);
+
     /*
         routine: wess_seq_loader_exit()
 

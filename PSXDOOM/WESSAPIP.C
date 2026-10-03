@@ -93,9 +93,9 @@ void wess_seq_pause(int sequence_number, enum MuteFlag mflag)//80041528
 					lpdest = psq_stat->ptrk_indxs;
 					while (lj--)
 					{
-						if (*lpdest != 0xFF)
+						if (*(unsigned char *)lpdest != 0xFF)
 						{
-							ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+							ptmp = (pm_stat->ptrkstattbl + (*(unsigned char *)lpdest));
 							trackstop(ptmp, psq_stat);
 							if (mflag == YesMute)
 							{
@@ -152,9 +152,9 @@ void wess_seq_restart(int sequence_number)//800416D0
 					lpdest = psq_stat->ptrk_indxs;
 					while (lj--)
 					{
-						if (*lpdest != 0xFF)
+						if (*(unsigned char *)lpdest != 0xFF)
 						{
-							ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+							ptmp = (pm_stat->ptrkstattbl + (*(unsigned char *)lpdest));
 							trackstart(ptmp, psq_stat);
 							if (!--li) break;
 						}
@@ -211,9 +211,9 @@ void wess_seq_pauseall(enum MuteFlag mflag, NoteState *pns)//8004183C
 				lpdest = psq_stat->ptrk_indxs;
 				while (lj--)
 				{
-					if (*lpdest != 0xFF)
+					if (*(unsigned char *)lpdest != 0xFF)
 					{
-						ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+						ptmp = (pm_stat->ptrkstattbl + (*(unsigned char *)lpdest));
 						if (mflag == YesMute)
 						{
 							CmdFuncArr[ptmp->patchtype][TrkMute](ptmp);
@@ -274,16 +274,16 @@ void wess_seq_restartall(NoteState *pns)//800419f8
 				lpdest = psq_stat->ptrk_indxs;
 				while (lj--)
 				{
-					if (*lpdest != 0xFF)
+					if (*(unsigned char *)lpdest != 0xFF)
 					{
-						ptmp = (pm_stat->ptrkstattbl + (*lpdest));
+						ptmp = (pm_stat->ptrkstattbl + (*(unsigned char *)lpdest));
 						trackstart(ptmp, psq_stat);
 
 						if (pns != 0)
 						{
 							for (nc = 0; nc < pns->numnotes; nc++)
 							{
-								if (*lpdest == pns->nd[nc].track)
+								if (*(unsigned char *)lpdest == pns->nd[nc].track)
 								{
 									if (psq_stat->seq_num == pns->nd[nc].seq_num)
 									{

@@ -115,22 +115,11 @@ int SeekFile(int file_num, int seekpos, int seekmode)//L80031EF4()
 
 void ReadFile(int file_num, void *destptr, unsigned int readbytes)//L800322F8()
 {
-	unsigned long tell;
 	unsigned int rbytes;
 	PsxCd_File *fileptr;
 
 	fileptr = &files[file_num];
 	//printf("0x%X, [%d]", (unsigned long)fileptr,  file_num);
-
-	tell = psxcd_tell(fileptr);
-
-	rbytes = readbytes;
-	if (0x2000 < readbytes)
-		rbytes = 0x2000;	//max 32 kb
-
-	psxcd_seek(fileptr, 0, PSXCD_SEEK_SET);
-	psxcd_read(destptr, rbytes, fileptr);
-	psxcd_seek(fileptr, tell, PSXCD_SEEK_SET);
 
 	rbytes = psxcd_read(destptr, readbytes, fileptr);
 	if (rbytes != readbytes)

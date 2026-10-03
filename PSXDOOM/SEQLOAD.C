@@ -333,6 +333,13 @@ void wess_seq_loader_exit(void)//80044EAC
     seq_loader_enable = 0;
 }
 
+void wess_seq_loader_bind_cd(void)
+{
+	while (opencount > 0)
+		close_sequence_data();
+	open_sequence_data();
+}
+
 int wess_seq_sizeof(int seqnum)//80044ED4
 {
     sequence_data *psq_info;

@@ -17,6 +17,8 @@
 #include "psxcd.h"
 #include "psxspu.h"
 
+extern void PsyqSpuOutputCd(int volume);
+
 // undeclared SONY prototypes
 //extern void CdInit(void);
 
@@ -114,6 +116,7 @@ static CdlLOC  loc[100];
 static CdlLOC  newloc = {0,0,0,0};
 static CdlLOC  lastloc = {0,0,0,0};
 static CdlLOC  beginloc = {0,0,0,0};
+static unsigned long play_wait_at = 0;
 
 static void psxcd_memcpy(void *pdest, void *psrc, unsigned long bytestocopy)//L8003EF70()
 {
@@ -1092,7 +1095,6 @@ void psxcd_play_at_andloop(int track,
 void psxcd_play_at(int track, int vol, int sectoroffset)//800407B8
 {
 #if _CD_VERSION_ == 1
-    CdlLOC toc[100];
     u_char mode = CdlModeDA | CdlModeAP;
     u_char track_bcd = itob(track);
 
@@ -1102,21 +1104,39 @@ void psxcd_play_at(int track, int vol, int sectoroffset)//800407B8
     playvol = vol;
     playcount = 0;
     playfadeuptime = 0;
+    play_wait_at = 0;
 
     psxspu_set_cd_vol(vol);
     psxspu_setcdmixon();
-    CdControlB(CdlSetmode, &mode, check_result);
 
-    if (sectoroffset && CdGetToc(toc) >= track)
+    /* The drive is already reading the audio track. This mixer is separate
+       from the SPU CD volume, and both have to be open or the track is silent. */
+    cdatv.val0 = 128;
+    cdatv.val1 = 0;
+    cdatv.val2 = 128;
+    cdatv.val3 = 0;
+
+    CdControlB(CdlDemute, 0, 0);
+    CdControlB(CdlSetmode, &mode, check_result);
+    CdMix(&cdatv);
+
+    if (track > 0 && track < 100 && *(int *)&loc[track - 1] != 0)
     {
-        CdIntToPos(CdPosToInt(&toc[track - 1]) + sectoroffset, &cdloc);
-        CdControlB(CdlSetloc, &cdloc, check_result);
-        CdControl(cdl_com=CdlPlay, 0, check_result);
+        if (sectoroffset)
+            CdIntToPos(CdPosToInt(&loc[track - 1]) + sectoroffset, &cdloc);
+        else
+            cdloc = loc[track - 1];
+        CdControlB(CdlSetloc, (u_char *)&cdloc, check_result);
+        CdControlB(cdl_com=CdlPlay, 0, check_result);
     }
     else
     {
-        CdControl(cdl_com=CdlPlay, &track_bcd, check_result);
+        CdControlB(cdl_com=CdlPlay, &track_bcd, check_result);
     }
+
+    CdControlB(CdlDemute, 0, 0);
+    CdMix(&cdatv);
+    PsyqSpuOutputCd(vol);
 
     *(int *)&beginloc = 0;
     *(int *)&newloc = 0;
@@ -1269,7 +1289,19 @@ int psxcd_elapsed_sectors(void)//80040C6C
 #if _CD_VERSION_ == 1
     CdlLOCINFOP physical;
     CdlLOC absolute;
+    u_char stat[8];
 
+    /* GetlocP while the drive is seeking reads the data track and, on
+       hardware, aborts the play. Wait until the status byte says playing. */
+    if (!CdControlB(CdlNop, 0, stat))
+        return 0;
+    if ((stat[0] & CdlStatSeek) || !(stat[0] & CdlStatPlay))
+    {
+        if (++play_wait_at > 8000)
+            return 1;
+        return 0;
+    }
+    play_wait_at = 0;
     if (!CdControlB(CdlGetlocP, 0, (u_char *)&physical))
         return 0;
     absolute.minute = physical.minute;

@@ -229,6 +229,8 @@ static void intro_start_stream(CdlFILE *file)
 
 static void intro_stop_stream(void)
 {
+	uint8_t mode = CdlModeSpeed;
+
 	CdControlB(CdlPause, 0, 0);
 	DecDCTinSync(0);
 	DecDCToutSync(0);
@@ -236,6 +238,9 @@ static void intro_stop_stream(void)
 	CdReadyCallback(0);
 	DMACallback(1, 0);
 	ExitCriticalSection();
+	/* Leave XA streaming mode or the following CD-DA tracks stay silent. */
+	CdControlB(CdlSetmode, &mode, 0);
+	CdControlB(CdlDemute, 0, 0);
 	DecDCTReset(1);
 	SetDispMask(0);
 }

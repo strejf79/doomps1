@@ -408,7 +408,13 @@ void PSX_DriverEntry1 (track_status *ptk_stat)//L80045F44()
 		{
 			if (drv_keysstatus[drv_keycnt] == 0)
 			{
+				track_status *finished = drv_ptsbase + drv_pvs->track;
+				int sfx = (finished->sndclass != MUSIC_CLASS);
+
 				PSX_voiceparmoff(drv_pvs);
+				/* The sample is gone. Keep the sequence slot for the next effect. */
+				if (sfx && (finished->flags & TRK_ACTIVE) && finished->voices_active == 0)
+					Eng_TrkOff(finished);
 			}
 		}
 		drv_pvs++;
@@ -480,7 +486,10 @@ void PSX_TrkMute(track_status *ptk_stat)//L800462B0()
                 PSX_voicerelease(drv_pvs_2);
                 //printf("voice_stat->refindx %d\n",drv_pvs_2->refindx);
 
-				voice_flags2 = 1 << (drv_pvs_2->refindx & 31) | voice_flags2;
+				/* One-shots end on the sample's end flag. Key-off here
+				   cuts them. Music notes still have to release. */
+				if (ptk_stat->sndclass == MUSIC_CLASS)
+					voice_flags2 = 1 << (drv_pvs_2->refindx & 31) | voice_flags2;
 				if (!--drv_vn_2) break;
 			}
 
@@ -799,7 +808,14 @@ void PSX_voiceparmoff(voice_status *voice_stat)//L80046DDC()
 
 void PSX_voicerelease(voice_status *voice_stat)//L80046EA4()
 {
+	track_status *t;
+
     //printf("PSX_voicerelease\n");
+	t = drv_ptsbase + voice_stat->track;
+	/* Leave an effect keyed on. The ADPCM end flag silences it, and the
+	   channel stays reserved so the next shot uses another voice. */
+	if (t->sndclass != MUSIC_CLASS)
+		return;
 	voice_flags1 = 1 << (voice_stat->refindx & 31) | voice_flags1;
 	voice_stat->flags |= VOICE_RELEASE;
 	voice_stat->pabstime = *drv_pcurabstime + voice_stat->adsr2;
@@ -810,12 +826,153 @@ extern unsigned long				drv_hwvl_6;		//L8007EF58
 extern unsigned long				drv_note_stat;				//L8007EF5C
 extern voice_status				*drv_voice_stat_6;			//L8007EF60
 
+static int psx_release_track(track_status *t)
+{
+	int i;
+
+	if (!t || !(t->flags & TRK_ACTIVE))
+		return 0;
+	t->flags |= TRK_OFF;
+	for (i = 0; i < (int)drv_hwvl; i++) {
+		voice_status *v = drv_pcurvs + i;
+		if ((v->flags & VOICE_ACTIVE) && v->track == t->refindx) {
+			SpuSetKey(SPU_OFF, 1UL << (v->refindx & 31));
+			PSX_voiceparmoff(v);
+		}
+	}
+	if (t->flags & TRK_ACTIVE)
+		Eng_TrkOff(t);
+	return 1;
+}
+
+/* Effects and level music share the 24 hardware voices. A shot is still
+   going for well under a second; don't hand that voice to the next effect. */
+#define SFX_KEEP_MS 1000
+
+/* sound/vagsample walks the 24 channels instead of restarting channel 0. */
+static unsigned int sfx_next_voice;
+
+static voice_status *psx_alloc_sfx_voice(void)
+{
+	unsigned int n;
+	unsigned int i;
+
+	if (!drv_pcurvs || !drv_hwvl)
+		return 0;
+	n = drv_hwvl;
+	for (i = 0; i < n; i++) {
+		unsigned int ch = (sfx_next_voice + i) % n;
+		voice_status *v = drv_pcurvs + ch;
+
+		if (v->flags & VOICE_ACTIVE)
+			continue;
+		sfx_next_voice = (ch + 1) % n;
+		return v;
+	}
+	return 0;
+}
+
+static int psx_sfx_finished(voice_status *v)
+{
+	track_status *t;
+
+	if (!(v->flags & VOICE_ACTIVE) || !drv_ptsbase || !drv_pcurabstime)
+		return 0;
+	t = drv_ptsbase + v->track;
+	if (t->sndclass == MUSIC_CLASS)
+		return 0;
+	/* The envelope register reads 0 while a sample is still playing, so it
+	   cannot be used to decide the voice is free. A note-off parks pabstime
+	   in the future; that subtraction wraps and must not count as finished. */
+	if (v->pabstime > *drv_pcurabstime)
+		return 0;
+	return (*drv_pcurabstime - v->pabstime) > 2000;
+}
+
+static void psx_drop_finished_voice(voice_status *v)
+{
+	track_status *t = drv_ptsbase + v->track;
+
+	SpuSetKey(SPU_OFF, 1UL << (v->refindx & 31));
+	PSX_voiceparmoff(v);
+	if ((t->flags & TRK_ACTIVE) && t->voices_active == 0)
+		Eng_TrkOff(t);
+}
+
+void PSX_ReclaimFinishedSfx(void)
+{
+	int i;
+
+	if (!drv_pcurvs || !drv_ptsbase || !drv_pcurabstime || !drv_hwvl)
+		return;
+	for (i = 0; i < (int)drv_hwvl; i++) {
+		voice_status *v = drv_pcurvs + i;
+		if (psx_sfx_finished(v))
+			psx_drop_finished_voice(v);
+	}
+}
+
+int PSX_FreeOldestSfx(void)
+{
+	int i;
+	voice_status *best = 0;
+	unsigned long best_time = 0xFFFFFFFFUL;
+
+	if (!drv_pcurvs || !drv_ptsbase || !drv_hwvl)
+		return 0;
+	for (i = 0; i < (int)drv_hwvl; i++) {
+		voice_status *v = drv_pcurvs + i;
+		track_status *t;
+		if (!(v->flags & VOICE_ACTIVE))
+			continue;
+		t = drv_ptsbase + v->track;
+		if (t->sndclass == MUSIC_CLASS)
+			continue;
+		if (drv_pcurabstime && (*drv_pcurabstime - v->pabstime) < SFX_KEEP_MS)
+			continue;
+		if (!best || v->pabstime <= best_time) {
+			best_time = v->pabstime;
+			best = v;
+		}
+	}
+	if (!best)
+		return 0;
+	return psx_release_track(drv_ptsbase + best->track);
+}
+
+void PSX_ReapSfx(unsigned long age)
+{
+	(void)age;
+	/* Used to hard-cut any effect older than a few seconds, including ones
+	   still playing. Finished samples are released instead. */
+	PSX_ReclaimFinishedSfx();
+}
+
 void PSX_voicenote(track_status *ptk_stat,
 	           patchmaps_header *patchmap, patchinfo_header *patchinfo,
 	           unsigned char keynum, unsigned char velnum)//L80046EF0()
 {
     //printf("PSX_voicenote\n");
+	if (ptk_stat->sndclass == SNDFX_CLASS) {
+		voice_status *free_sfx = psx_alloc_sfx_voice();
+
+		if (free_sfx) {
+			PSX_voiceon(free_sfx, ptk_stat, patchmap, patchinfo, keynum, velnum);
+			return;
+		}
+	}
 	drv_note_stat = 0;
+	priority = 0x100;
+	max_pabstime = 0xFFFFFFFF;
+	ptr_pvoicestattbl = 0;
+	drv_hwvl_6 = drv_hwvl;
+	drv_voice_stat_6 = drv_pcurvs;
+	for (drv_hwvl_6 = 0; drv_hwvl_6 < drv_hwvl; drv_hwvl_6++) {
+		if (!((drv_pcurvs + drv_hwvl_6)->flags & VOICE_ACTIVE))
+			break;
+	}
+	if (drv_hwvl_6 == drv_hwvl)
+		PSX_FreeOldestSfx();
 	drv_hwvl_6 = drv_hwvl;
 	drv_voice_stat_6 = drv_pcurvs;
 
@@ -829,15 +986,21 @@ void PSX_voicenote(track_status *ptk_stat,
         }
         if (drv_voice_stat_6->priority <= ptk_stat->priority)
         {
+          /* Leave a shot that just started. Take an older voice instead. */
+          if (drv_pcurabstime &&
+              (*drv_pcurabstime - drv_voice_stat_6->pabstime) < SFX_KEEP_MS)
+            goto next_voice;
           if (priority <= drv_voice_stat_6->priority)
           {
             if ((drv_voice_stat_6->flags & VOICE_RELEASE) == 0)
             {
-              if ((ptr_pvoicestattbl->flags & VOICE_RELEASE) != 0) goto next_voice;
+              if (ptr_pvoicestattbl != 0 && (ptr_pvoicestattbl->flags & VOICE_RELEASE) != 0)
+                goto next_voice;
             }
             else
             {
-              if ((ptr_pvoicestattbl->flags & VOICE_RELEASE) == 0) goto set_note_stat;
+              if (ptr_pvoicestattbl == 0 || (ptr_pvoicestattbl->flags & VOICE_RELEASE) == 0)
+                goto set_note_stat;
             }
             if (max_pabstime <= drv_voice_stat_6->pabstime) goto next_voice;
           }

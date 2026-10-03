@@ -94,6 +94,14 @@ void SpuSetReverbDepth(SpuReverbAttr *attr);
 void SpuSetReverb(int on);
 void SpuSetReverbVoice(int on, unsigned long voices);
 void SpuSetVoiceAttr(SpuVoiceAttr *attr);
+void PsyqSpuSetKey(int enable, unsigned long voice_bit);
+void PsyqSpuOutputCd(int volume);
 void SpuSetKeyOnWithAttr(SpuVoiceAttr *attr);
 void SpuGetAllKeysStatus(char *status);
 void SpuQuit(void);
+
+/* The SDK macro writes the key registers and nothing else. Sound effects need
+   to know which voices were keyed on, because the envelope volume stays 0 for
+   the first tick after key-on. */
+#undef SpuSetKey
+#define SpuSetKey(enable, voice_bit) PsyqSpuSetKey((int)(enable), (unsigned long)(voice_bit))
