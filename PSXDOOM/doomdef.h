@@ -975,6 +975,7 @@ unsigned int *Get_CfgByCode(unsigned int cfgcode);
 /* extras */
 //void W_AddPrim (void* prim, unsigned long* addr0, unsigned long* addr1);//OLD VERSION
 void W_AddPrim (void* prim);
+void W_AddTexWindow(const RECT *rect);
 void TestRender(void);
 
 int RunLegal(void);

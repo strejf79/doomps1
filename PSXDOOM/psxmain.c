@@ -32,9 +32,12 @@ int	drawsync1;//80077FE4
 int	drawsync2;//80077F3C
 extern int	v_sync;//80077CC8
 
-#define OTSIZE	(1<<15)//32768; avoids the broken mid-frame ring wrap
-unsigned long	ot[OTSIZE];//80086378 psxdoom ot
-unsigned long	*sys_ot[2] = {ot, ot};//off_80077A44[0], off_80077A48[1]
+#define OTSIZE	(1<<15)//32768 words, one full frame with no mid-frame wrap
+unsigned long	ot[2][OTSIZE];
+int		ot_side;
+int		gpu_twin_valid;
+unsigned long	gpu_twin_code;
+unsigned long	*sys_ot[2] = { ot[0], ot[0] };
 
 #define	BUFFSIZE	(8)
 static long fr, fw;//80078058, 80077D40
@@ -262,6 +265,8 @@ void DrawRender(void)//80033264
 
 	PutDrawEnv(&draw[drawside]);
 	PutDispEnv(&disp[drawside]);
+	/* PutDrawEnv resets the texture window. The next list must send it again. */
+	gpu_twin_valid = 0;
 
 	do
     {
@@ -808,8 +813,11 @@ void UpdateDrawOTag(void)//80034C60
 		*sys_ot[1] = 0xffffff;
 		DrawOTag(sys_ot[0]);
 	}
-	sys_ot[0] = ot;
-	sys_ot[1] = ot;
+	/* The GPU is still reading the list just submitted. The next frame
+	   is built in the other list. */
+	ot_side ^= 1;
+	sys_ot[0] = ot[ot_side];
+	sys_ot[1] = ot[ot_side];
 }
 
 /*
@@ -879,82 +887,62 @@ unsigned int *Get_CfgByCode(unsigned int cfgcode)//L80034D0C
 /* */
 /*================================================================== */
 
-#define  GP0_GPUREAD ((unsigned long*)  getScratchAddr(1540))
-#define  GP1_GPUSTAT ((unsigned long*)  getScratchAddr(1541))
-
 void W_AddPrim (void* prim)
 {
 	unsigned long *entry, *entry1;
 	int length;
 
+	length = getlen(prim);
 	entry1 = sys_ot[1];
-    do
-    {
-        length = getlen(prim);
-        entry = sys_ot[1];
+	entry = entry1 + (length + 1);
+	if (entry >= ot[ot_side] + OTSIZE)
+		return;
 
-        if(sys_ot[1] >= sys_ot[0])
-        {
-            if((((length+1) + entry) < (ot + (OTSIZE))))
-            {
-            addprim:
-                entry = (length+1) + sys_ot[1];
-                sys_ot[1] = entry;
+	sys_ot[1] = entry;
+	catPrim(entry1, entry);
+	setlen(entry1, length);
+	entry = (unsigned long *)prim + 1;
 
-                catPrim(entry1, sys_ot[1]);
-                setlen(entry1, length);
-                entry = (unsigned long *)prim+1;//skip prim->tag
+	/* Wall columns are 7-word FT3s. A counted loop stays a call per word. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+	switch (length)
+	{
+	case 12: entry1[12] = entry[11];
+	case 11: entry1[11] = entry[10];
+	case 10: entry1[10] = entry[9];
+	case 9:  entry1[9]  = entry[8];
+	case 8:  entry1[8]  = entry[7];
+	case 7:  entry1[7]  = entry[6];
+	case 6:  entry1[6]  = entry[5];
+	case 5:  entry1[5]  = entry[4];
+	case 4:  entry1[4]  = entry[3];
+	case 3:  entry1[3]  = entry[2];
+	case 2:  entry1[2]  = entry[1];
+	case 1:  entry1[1]  = entry[0];
+		break;
+	default:
+		while (length--)
+		{
+			entry1++;
+			*entry1 = *entry++;
+		}
+		break;
+	}
+#pragma GCC diagnostic pop
+}
 
-                //Copy prim to ot
-                while (length--)
-                {
-                    entry1++;
-                    *entry1 = *entry++;
-                }
+void W_AddTexWindow(const RECT *rect)
+{
+	DR_TWIN *tw;
 
-                while (sys_ot[0] != sys_ot[1])
-                {
-                    if((*GP1_GPUSTAT & 0x4000000) == 0)  {break;}
-
-                    entry = sys_ot[0];
-                    length = getlen(entry);
-                    sys_ot[0] = nextPrim(entry);
-
-                    //Copy address
-                    while (length--)
-                    {
-                        entry++;
-                        *GP0_GPUREAD = *entry;
-                    }
-                }
-                return;
-            }
-
-            sys_ot[1] = ot;
-            catPrim(entry1, sys_ot[1]);
-            setlen(entry1, 0);
-
-            entry1 = sys_ot[1];
-        }
-
-        if (((length+1) + entry) < sys_ot[0]) goto addprim;
-
-        while (sys_ot[0] != sys_ot[1])
-        {
-            if((*GP1_GPUSTAT & 0x4000000) == 0)  {break;}
-
-            entry = sys_ot[0];
-            length = getlen(entry);
-            sys_ot[0] = nextPrim(entry);
-
-            //Copy address
-            while (length--)
-            {
-                entry++;
-                *GP0_GPUREAD = *entry;
-            }
-        }
-    } while(1);
+	tw = (DR_TWIN *)getScratchAddr(128);
+	SetTexWindow(tw, rect);
+	if (gpu_twin_valid && tw->code[0] == gpu_twin_code)
+		return;
+	gpu_twin_code = tw->code[0];
+	gpu_twin_valid = 1;
+	W_AddPrim(tw);
 }
 
 #if 0 //OLD VERSION

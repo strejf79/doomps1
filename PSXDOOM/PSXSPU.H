@@ -56,6 +56,7 @@
 extern unsigned long end_of_sram;
 
 extern void psxspu_init(void);
+extern void psxspu_halt_for_upload(void);
 
 extern void psxspu_init_reverb(long  rev_mode,
                                short depthleft,

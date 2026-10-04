@@ -339,7 +339,7 @@ void R_AddLine(seg_t *line)//L8002B288
 		if (vrt->vy >= 4)
         {
             vrt->yy = 0x800000 / vrt->vy;
-            vrt->xx = ((vrt->vx * (0x800000 / vrt->vy)) >> 16) + 0x80;
+            vrt->xx = ((vrt->vx * vrt->yy) >> 16) + 0x80;
         }
 
 		vrt->index = TextureCacheIdx;
@@ -367,7 +367,7 @@ void R_AddLine(seg_t *line)//L8002B288
 		if (vrt2->vy >= 4)
 		{
             vrt2->yy = 0x800000 / vrt2->vy;
-            vrt2->xx = ((vrt2->vx * (0x800000 / vrt2->vy)) >> 16) + 0x80;
+            vrt2->xx = ((vrt2->vx * vrt2->yy) >> 16) + 0x80;
 		}
 
 		vrt2->index = TextureCacheIdx;

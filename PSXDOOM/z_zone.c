@@ -35,7 +35,8 @@ extern unsigned int _bbsstart;      // bss start free memory ram
 extern unsigned long _ramsize;      // megabytes of RAM
 extern unsigned long _stacksize;    // kilobytes of stack
 
-unsigned int _bbsstart2 = 0x800A9CA8;//tmp addres
+/* Above the two ordering tables. Each one is 128 KB. */
+unsigned int _bbsstart2 = 0x800C9CA8;
 void Z_Init (void)//L80032014()
 {
 	byte	*mem;

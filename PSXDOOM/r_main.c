@@ -122,7 +122,6 @@ void R_RenderPlayerView(void)//L80030504()
 {
 	RECT    area;
 	angle_t angle;
-	DR_TWIN *texwindow = (DR_TWIN*) getScratchAddr(128);//1F800200
 
 	if (!viewlighting)
     {
@@ -187,8 +186,7 @@ void R_RenderPlayerView(void)//L80030504()
 	R_Render_Hud_Weapons();
 
 	setRECT(&area, 0, 0, 0, 0);
-	SetTexWindow(texwindow, &area);
-	W_AddPrim(texwindow);   /* add to order table*/
+	W_AddTexWindow(&area);
 }
 
 /*============================================================================= */

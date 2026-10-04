@@ -48,8 +48,17 @@ set_source_files_properties(${DOOM_SOURCES} PROPERTIES LANGUAGE C)
 set_source_files_properties(
 	"${DOOM_DIR}/r_phase1.c"
 	"${DOOM_DIR}/r_phase2.c"
+	"${DOOM_DIR}/r_data.c"
 	"${DOOM_DIR}/r_main.c"
 	"${DOOM_DIR}/psxmain.c"
+	"${DOOM_DIR}/p_map.c"
+	"${DOOM_DIR}/p_enemy.c"
+	"${DOOM_DIR}/p_sight.c"
+	"${DOOM_DIR}/p_mobj.c"
+	"${DOOM_DIR}/p_user.c"
+	"${DOOM_DIR}/p_tick.c"
+	"${DOOM_DIR}/m_fixed.c"
+	"${DOOM_DIR}/st_main.c"
 	PROPERTIES COMPILE_FLAGS "-O3"
 )
 

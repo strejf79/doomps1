@@ -111,7 +111,7 @@ void R_RenderAll(subsector_t *sub)//L8002C5C8
             if (v1.vz > 3)
 			{
                 vrt->yy = 0x800000 / v1.vz;
-                vrt->xx = ((0x800000 / v1.vz) * vrt->vx >> 0x10) + 0x80;
+                vrt->xx = ((vrt->yy * vrt->vx) >> 16) + 0x80;
 			}
 
 			vrt->index = TextureCacheIdx;
@@ -634,14 +634,15 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
 	int yy, y1, y2;
 
 	int ztop, zbot;
+	int y_step, ztop_step, zbot_step;
 	int ystep1, ystep2, xstep1, xstep2, zstep1;
 	int vcos, vsin, vx, vy, vstep1, vstep2, vd, vs1, vs2;
 
-	int intensity, r, g, b;
+	int intensity, r, g, b, lit_band, u_base;
 	int v0, v1, u0, vd1, vd2, upos;
 	int deltax, deltay, ypos1, ypos2;
+	int quot, anchor, relight;
 
-	DR_TWIN *texwindow = (DR_TWIN*) getScratchAddr(128);//1F800200
 	POLY_FT3 *wallpoly = (POLY_FT3*) getScratchAddr(128);//1F800200
 
 	vrt = lf->vertex;
@@ -668,8 +669,7 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
 		}
 
 		setRECT(&rect, texture->vramx, texture->vramy, texture->w, texture->h);
-		SetTexWindow(texwindow, &rect);
-		W_AddPrim(texwindow);// add to order table
+		W_AddTexWindow(&rect);
 
         //Setup Wall Primitive Polygon
 		setPolyFT3(wallpoly);
@@ -688,6 +688,10 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
 
         ztop = (topheight * y2) - (topheight * y1);
         zbot = (bottomheight * y2) - (bottomheight * y1);
+        /* These three quotients are constant for every column of this wall. */
+        y_step = yy / xx;
+        ztop_step = ztop / xx;
+        zbot_step = zbot / xx;
 
         seg = lf->seg;
         angle = seg->angle >> ANGLETOFINESHIFT;
@@ -714,8 +718,8 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
         deltax = (seg->xpos1 - x1);
         if (x1 < seg->xpos1)
         {
-            ystep1 += deltax * (ztop / xx);
-            ystep2 += deltax * (zbot / xx);
+            ystep1 += deltax * ztop_step;
+            ystep2 += deltax * zbot_step;
             vs1 += deltax * vstep1;
             vs2 += deltax * vstep2;
             x1 = seg->xpos1;
@@ -724,6 +728,14 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
         if (seg->xpos2 < x2)
             x2 = seg->xpos2;
 
+        u_base = (seg->offset + FRACUNIT + seg->sidedef->textureoffset)
+            - (((vx * (vcos >> 8)) + (vy * (vsin >> 8))) >> 8);
+        lit_band = 0x80000000;
+        if (!viewlighting)
+        {
+            setRGB0(wallpoly, base_r, base_g, base_b);
+        }
+
         while(x1 < x2)
 		{
             ypos1 = (ystep1 >> 16);
@@ -731,13 +743,6 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
 
             if ((ypos1 <= 200) && (ypos2 >= 0))
             {
-                upos = 0;
-                if (vs2 != 0)
-                {
-                    upos = ((((seg->offset + FRACUNIT + seg->sidedef->textureoffset) -
-                                  ((vx * (vcos >> 8)) + (vy * (vsin >> 8))) >> 8) + (vs1 / vs2)) >> 8);
-                }
-
                 v0 = top_V;
 				v1 = bottom_V;
 
@@ -762,15 +767,57 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
                     }
                 }
 
-                if (!viewlighting)
+                /* The texture divide takes about 35 cycles. Start it, then
+                   store this column's corners before reading the result. */
+                if (vs2 != 0)
                 {
-                    r = base_r;
-					g = base_g;
-					b = base_b;
+                    __asm__ volatile (
+                        ".set push\n\t"
+                        ".set noreorder\n\t"
+                        ".set nomacro\n\t"
+                        "div $0, %1, %2\n\t"
+                        "move %0, %3\n\t"
+                        ".set pop"
+                        : "=r"(anchor)
+                        : "r"(vs1), "r"(vs2), "r"(x1)
+                        : "lo", "hi", "memory");
                 }
                 else
+                    anchor = x1;
+
+				setXY3(wallpoly,
+					anchor, ypos1-1,
+					anchor+1, ypos2+1,
+					anchor, ypos2+1);
+
+                relight = 0;
+                if (viewlighting)
                 {
                     intensity = y1 >> 8;
+                    relight = intensity != lit_band;
+                }
+
+                if (vs2 != 0)
+                {
+                    __asm__ volatile (
+                        ".set push\n\t"
+                        ".set noreorder\n\t"
+                        ".set nomacro\n\t"
+                        "mflo %0\n\t"
+                        ".set pop"
+                        : "=r"(quot)
+                        : "r"(anchor)
+                        : "memory");
+                    upos = (u_base + quot) >> 8;
+                }
+                else
+                    upos = 0;
+
+                if (relight)
+                {
+                    if (vs2 != 0)
+                        __asm__ volatile ("" : "+r"(intensity) : "r"(quot));
+                    lit_band = intensity;
 
                     if (intensity < 64)
                         intensity = 64;
@@ -784,33 +831,24 @@ void R_Render_Wall(leaf_t *lf, psxobj_t *texture, int topheight, int bottomheigh
                     if (r > 255) { r = 255; }
                     if (g > 255) { g = 255; }
                     if (b > 255) { b = 255; }
+
+                    setRGB0(wallpoly, r, g, b);
                 }
 
-                setRGB0(wallpoly, r, g, b);
-
-                //setXY3(p,_x0,_y0,_x1,_y1,_x2,_y2)
-				setXY3(wallpoly,
-					x1  , ypos1-1,
-					x1+1, ypos2+1,
-					x1  , ypos2+1);
-
-                //setUV3(p,_u0,_v0,_u1,_v1,_u2,_v2)
 				setUV3(wallpoly,
                         upos, v0,
                         upos, v1,
                         upos, v1);
 
-                W_AddPrim(wallpoly);// add to order table
+                W_AddPrim(wallpoly);
             }
 
             x1 += 1;
-            y1 += (yy / xx);
-
+            y1 += y_step;
             vs1 += vstep1;
             vs2 += vstep2;
-
-            ystep1 += (ztop / xx);
-            ystep2 += (zbot / xx);
+            ystep1 += ztop_step;
+            ystep2 += zbot_step;
 		}
 	}
 }
@@ -822,7 +860,6 @@ void R_PlanePrep(vleaf_t *vlf1, PlaneType planeType)//L8002E178
 	fixed_t zheight;
 	psxobj_t *psxobj;
 	byte *data;
-	DR_TWIN *texwindow = (DR_TWIN*) getScratchAddr(128);//1F800200
 
     if (planeType == FLOOR)
     {
@@ -858,8 +895,7 @@ void R_PlanePrep(vleaf_t *vlf1, PlaneType planeType)//L8002E178
 	}
 
 	setRECT(&rect, psxobj->vramx, psxobj->vramy, 64, 64);
-	SetTexWindow(texwindow, &rect);
-	W_AddPrim(texwindow);// add to order table
+	W_AddTexWindow(&rect);
 
     if (planeType == FLOOR)
     {
@@ -1253,7 +1289,6 @@ void R_Render_Sprite(subsector_t *sub)//L8002F200
 
 	int count;
 
-	DR_TWIN *texwindow = (DR_TWIN*) getScratchAddr(128);//1F800200
 	POLY_FT4 *spritepoly = (POLY_FT4*) getScratchAddr(128);//1F800200
 
 	visspritehead.next = &visspritehead;
@@ -1313,8 +1348,7 @@ void R_Render_Sprite(subsector_t *sub)//L8002F200
 	if (count != 0)
 	{
 		setRECT(&area, 0, 0, 0, 0);
-		SetTexWindow(texwindow, &area);
-		W_AddPrim(texwindow);// add to order table
+		W_AddTexWindow(&area);
 
 		setPolyFT4(spritepoly);
 		spritepoly->clut = palettebase;

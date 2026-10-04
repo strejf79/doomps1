@@ -1,5 +1,6 @@
 /* t_main.c -- title intro */
 
+#include <stdio.h>
 #include "doomdef.h"
 #include "p_spec.h"
 #include "r_local.h"
@@ -76,6 +77,7 @@ void T_Start(void)//L80034EA0()
 
 void T_Stop(int exit)//L80035070()
 {
+	printf("PORT title-stop\n");
 	S_StartSound(NULL, sfx_barexp);
 	psxcd_stop();
 }

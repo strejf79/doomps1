@@ -13,6 +13,7 @@
     /*------------------------------------------------------------------*/
 
 #include <kernel.h>
+#include <stdio.h>
 #include "wessapi.h"
 #include "psxcd.h"
 #include "psxspu.h"
@@ -39,6 +40,7 @@ static volatile int seeking_for_play = 0;
 static volatile int waiting_for_pause = 0;
 static volatile int async_on = 0;
 static CdlLOC sectorbuf_contents = {0,0,0,0};
+static int sectorbuf_valid = 0;
 
 static void psxcd_memcpy(void *pdest, void *psrc, unsigned long bytestocopy);
 
@@ -48,6 +50,8 @@ static u_long cbsyncsave;
 static u_long cbreadysave;
 static void cbcomplete(int intr, u_char *result);
 static void cbready(int intr, u_char *result);
+static void psxcd_silence_cdda(void);
+static void psxcd_drop_sector_cache(void);
 
 static int psxcd_mode = -1; //initially an undefined mode
 static int IsCdInit = 0;
@@ -444,6 +448,8 @@ void psxcd_set_data_mode(void)//8003F72C
 #if _CD_VERSION_ == 1
     //int millitemp;
 
+    psxcd_drop_sector_cache();
+
     if(psxcd_mode!=1)
     {
         playflag = 0; // ensure no SeekP callback activity
@@ -668,12 +674,38 @@ int psxcd_waiting_for_pause(void)//8003FAE4
 #endif
 }
 
+static void psxcd_drop_sector_cache(void)
+{
+    sectorbuf_valid = 0;
+}
+
+/* Data reads share the SPU input with CD audio. A full BIOS boot leaves
+   that input open, so the demo-load sector loop is heard as a screech. */
+static void psxcd_silence_cdda(void)
+{
+#if _CD_SPU_LINK_ == 1
+    printf("PORT cd-silence vol=%d\n", psxspu_get_cd_vol());
+    psxspu_set_cd_vol(0);
+    psxspu_setcdmixoff();
+#else
+    printf("PORT cd-silence\n");
+#endif
+    cdatv.val0 = 0;
+    cdatv.val1 = 0;
+    cdatv.val2 = 0;
+    cdatv.val3 = 0;
+    CdMix(&cdatv);
+    CdControlB(CdlMute, 0, 0);
+}
+
 int psxcd_read(void *destptr,int readbytes,PsxCd_File *fileptr)//8003FB90
 {
     int remaining = readbytes;
     int lba = CdPosToInt(&fileptr->new_io_loc);
     int offset = fileptr->io_block_offset;
     unsigned char *dest = destptr;
+
+    psxcd_silence_cdda();
 
     while (remaining > 0)
     {
@@ -686,6 +718,8 @@ int psxcd_read(void *destptr,int readbytes,PsxCd_File *fileptr)//8003FB90
             !((unsigned long)dest & 3))
         {
             sectors = remaining / CD_ROM_SECTOR_SIZE;
+            psxcd_drop_sector_cache();
+            printf("PORT cd-fetch lba=%d count=%d\n", lba, sectors);
             if (!CdControlB(CdlSetloc, &fileptr->new_io_loc,
                 fileptr->io_result))
                 return readbytes - remaining;
@@ -699,12 +733,19 @@ int psxcd_read(void *destptr,int readbytes,PsxCd_File *fileptr)//8003FB90
             continue;
         }
 
-        if (!CdControlB(CdlSetloc, &fileptr->new_io_loc,
-            fileptr->io_result))
-            return readbytes - remaining;
-        if (!CdReadRetry(1, (u_long *)sectorbuf, CdlModeSpeed, 3) ||
-            CdReadSync(0, fileptr->io_result) < 0)
-            return readbytes - remaining;
+        if (!sectorbuf_valid ||
+            *(int *)&sectorbuf_contents != *(int *)&fileptr->new_io_loc)
+        {
+            printf("PORT cd-fetch lba=%d count=1\n", lba);
+            if (!CdControlB(CdlSetloc, &fileptr->new_io_loc,
+                fileptr->io_result))
+                return readbytes - remaining;
+            if (!CdReadRetry(1, (u_long *)sectorbuf, CdlModeSpeed, 3) ||
+                CdReadSync(0, fileptr->io_result) < 0)
+                return readbytes - remaining;
+            sectorbuf_contents = fileptr->new_io_loc;
+            sectorbuf_valid = 1;
+        }
 
         amount = CD_ROM_SECTOR_SIZE - offset;
         if (amount > remaining)
@@ -1101,6 +1142,7 @@ void psxcd_play_at(int track, int vol, int sectoroffset)//800407B8
     playflag = 1;
     loopflag = 0;
     seeking_for_play = 0;
+    psxcd_drop_sector_cache();
     playvol = vol;
     playcount = 0;
     playfadeuptime = 0;
@@ -1222,8 +1264,10 @@ void psxcd_stop(void)//80040AC8
     seeking_for_play = 0;
 
     *(int *)&lastloc = 0;
+    psxcd_drop_sector_cache();
 
-    psxspu_setcdmixoff();
+    printf("PORT cd-stop\n");
+    psxcd_silence_cdda();
     CdControlB(cdl_com=CdlPause, 0, check_result);
     waiting_for_pause = 0;
 

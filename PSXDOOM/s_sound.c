@@ -2,6 +2,7 @@
 #include "doomdef.h"
 #include "p_local.h"
 #include "seqload.h"
+#include "psxspu.h"
 
 #define abs(x) ((x)<0 ? -(x) : (x))
 
@@ -323,11 +324,20 @@ void S_DoBlockClear(SampleBlock *sampblk)//80040E10
 	}
 }
 
+extern volatile int SeqOn;
+
 void S_Lcd_Load(int map_indx)//80040E88
 {
 	int sram_pos_tmp;
+	int seq_was;
 	if (lcd_file_indx != map_indx)
 	{
+		/* The title explosion is still keyed on. A BIOS boot left its
+		   logo in SPU RAM, and uploading samples while that voice runs
+		   is the load screech. Hold the sequencer until the upload ends. */
+		seq_was = SeqOn;
+		SeqOn = 0;
+		psxspu_halt_for_upload();
 		if (lcd_file_indx != 0)
 		{
 			if (music_indx != 0)
@@ -372,6 +382,7 @@ void S_Lcd_Load(int map_indx)//80040E88
 		{
 			wess_dig_lcd_load((char *)Map_Audio[map_indx].Sfx_lcd_indx, (void *)sram_pos_tmp, &mapsfxblk, 0);
 		}
+		SeqOn = seq_was;
 	}
 }
 
