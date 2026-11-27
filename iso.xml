@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Processed by CMake / mkpsxiso. Paths are relative to the build directory
+	unless prefixed with ${PROJECT_SOURCE_DIR}.
+-->
+<iso_project>
+	<track type="data">
+		<identifiers
+			system			="PLAYSTATION"
+			volume			="DOOMPS1_M0"
+			volume_set		="DOOMPS1_M0"
+			publisher		="JOHANNES_BRORSSON"
+			data_preparer	="PSN00BSDK ${PSN00BSDK_VERSION}"
+			application		="PLAYSTATION"
+			copyright		="LICENSE;1"
+		/>
+
+		<directory_tree>
+			<file name="SYSTEM.CNF"	type="data" source="${PROJECT_SOURCE_DIR}/system.cnf" />
+			<file name="DOOMPS1.EXE"	type="data" source="doomps1.exe" />
+			<file name="LICENSE"	type="data" source="${PROJECT_SOURCE_DIR}/LICENSE" />
+			<dummy sectors="1024"/>
+		</directory_tree>
+	</track>
+</iso_project>

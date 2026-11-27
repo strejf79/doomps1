@@ -1,34 +1,42 @@
-# PSXDOOM-RE
+# doomps1
 
-Welcome to the complete reverse engineering of PSX Doom by [GEC], this effort took about 2 and a half years to complete, now with the departure of **[PsyDoom](https://github.com/BodbDearg/PsyDoom)** the objective is to collaborate with Psx Doom PC BackPort in addition to correcting and sharing information on both projects.
+From-scratch **PlayStation 1** Doom-*style* engine by Johannes Brorsson.
 
-You need to download and install the Psy-Q SDK http://www.psxdev.net/downloads.html
+**Not a port of Doom. Not PSXDOOM-RE. Not psyq.** Clean-room C99 engine targeting real hardware and DuckStation.
 
-It is necessary to visit this page for installation since it is a very old software, frequently presenting failures in modern Windows
-http://www.psxdev.net/help/psyq_install.html
+| | |
+|---|---|
+| Toolchain | **PSn00bSDK + Nugget** (`mipsel-none-elf`) |
+| Video | **PAL 320×256** |
+| License | **Proprietary / All Rights Reserved** — see `LICENSE` |
+| Canonical branch | **`engine`** (orphan trunk; leave legacy `master` alone) |
 
-Once you have completed the installation process, go to copy the files in the PSYQ folder and it is necessary for the compilation.
+## M0 status
 
+- Clear-screen + colored gouraud triangle via Ordering Table  
+- VSync double-buffer loop  
+- Doom-like pad poll stub (tank move/turn, shoulder strafe)  
+- Audio no-op stub  
 
-Now everything is complete, copy the PSXDOOM-RE folder to the root "C:" of your hard drive.
+## Quick start
 
-You need to copy the PSXDOOM SLUS_000.77 game files, with everything and their folders, the MOVIE.STR file is impossible to copy in Windows, it is the only file that is previously in the ABIN folder.
+```bash
+./scripts/setup-psn00bsdk.sh
+source third_party/psn00bsdk/env.sh
+make
+# Open build/doomps1.cue in DuckStation (BIOS required on your machine)
+```
 
-You run the MAKEFILE.bat to compile and create the main.exe file, it will be automatically copied to the GAME folder.
+Full instructions: [docs/build-and-run.md](docs/build-and-run.md).
 
-In the GAME folder, you run the MAKE_CD.bat file, it will create the CD image, and it will also create 2 necessary files that are "PSXCDABS.C and PSXCDABS.H" these are automatically copied to the previous folder, this is essential since if you modify the code or the files of the game these will change your LBA address and the file size, which requires compiling it again to avoid getting loading errors.
+## Layout
 
+```
+include/engine/   public headers (platform, render, pad, audio, time, …)
+src/              boot, render OT path, pad, audio stub, main loop
+docs/             build / DuckStation notes
+scripts/          PSn00bSDK setup helper
+Dockerfile        optional Linux SDK image
+```
 
-Notes:
-The project is created with CodeBlocks, although it does not serve to compile, but to have the code in order and verification.
-
-The mkpsxiso.exe program is originally created by lameguy64, but the present version is modified by me, to create the files "PSXCDABS.C and PSXCDABS.H".
-https://github.com/Lameguy64/mkpsxiso by lameguy64
-
-
-Special thanks to my brothers for the help to the community in DoomWorld and Kaiser since he is the only one to see the progress of my work and helps me in several occasions.
-
-News:
-* No clip cheat code from PsyDoom.
-* VRAM Viewer added from Master Edition PsxDoom.
-* FPS Counter that can be deactivate/activate in the code itself.
+Later milestones add world/sectors, WAD→cooker (FreeDoom), entities, weapons, and SPU audio — see the project design plan (not duplicated here).
