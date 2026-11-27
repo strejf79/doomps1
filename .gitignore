@@ -1,0 +1,23 @@
+# Build
+/build/
+/out/
+*.exe
+*.elf
+*.map
+*.cpe
+*.bin
+*.cue
+*.iso
+
+# Toolchain / IDE
+.cache/
+.compile_commands.json
+compile_commands.json
+.vscode/
+.idea/
+*.user
+.DS_Store
+
+# PSn00bSDK local install (optional)
+/third_party/psn00bsdk/
+/opt/
