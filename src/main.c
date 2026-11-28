@@ -121,7 +121,7 @@ int main(int argc, const char **argv)
 	(void)argc;
 	(void)argv;
 
-	printf("doomps1 post-M6: multi-map PAL %dx%d\n", SCREEN_W, SCREEN_H);
+	printf("doomps1 textured walls PAL %dx%d\n", SCREEN_W, SCREEN_H);
 
 	plat_init();
 	disc_init();

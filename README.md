@@ -11,9 +11,9 @@ From-scratch **PlayStation 1** Doom-*style* engine by Johannes Brorsson.
 | License | **Proprietary / All Rights Reserved** — see `LICENSE` |
 | Canonical branch | **`engine`** |
 
-## Current tip — post-M6 multi-map
+## Current tip
 
-Plan milestones **M0–M6** are on `engine`. Tip adds three budgeted FreeDoom subsets on disc (`MAP` / `MAP2` / `MAP3`); **Select** or **EXIT** advances the slot. SPU ADPCM SFX + music stub; disc prefetch fail-soft.
+Plan milestones **M0–M6** are on `engine` (multi-map disc slots + SPU stub). Active polish: **textured brick walls** (`POLY_GT4` + 4bpp TIM).
 
 ## Quick start
 
