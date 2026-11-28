@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
- * Player — Doom-like tank turn + forward/back; strafe on shoulders.
+ * Player — movement + combat vitals.
  */
 #ifndef ENGINE_PLAYER_H
 #define ENGINE_PLAYER_H
@@ -10,11 +10,12 @@
 #include "engine/world.h"
 
 typedef struct Player {
-	/* World position in 12.12 fixed (ONE = 4096). Y is eye height above floor. */
 	i32 x, y, z;
-	/* Yaw in GTE angle units (0..4095); pitch reserved. */
 	i16 yaw;
 	i16 sector;
+	i16 health;
+	i16 ammo;
+	u8  flash; /* screen flash timer */
 } Player;
 
 void player_init(Player *p, const World *w);

@@ -12,6 +12,8 @@
 #include <psxgte.h>
 #include <inline_c.h>
 
+/* entities.h pulled via render.h */
+
 #define OT_LEN       256
 #define PRIM_BUF_LEN 24576
 
@@ -247,7 +249,6 @@ void r_draw_world(const World *w, const Player *player)
 	u16 vis_n;
 	u16 i, j;
 	u16 walls_drawn = 0;
-	const Sector *cam_s;
 
 	setup_camera(player);
 	vis_n = world_portal_flood(w, player->sector, vis, MAX_VIS_SECTORS);
@@ -264,14 +265,93 @@ void r_draw_world(const World *w, const Player *player)
 		}
 	}
 
-	cam_s = (player->sector >= 0) ? &w->sectors[player->sector] : 0;
+	(void)walls_drawn;
+}
 
-	FntPrint(-1, "M2 cooked map\n");
-	FntPrint(-1, "sec=%d vis=%d walls=%d\n", player->sector, vis_n, walls_drawn);
-	if (cam_s) {
-		FntPrint(-1, "light %d,%d,%d id=%d\n",
-			cam_s->light.r, cam_s->light.g, cam_s->light.b, cam_s->color_id);
+void r_draw_monsters(const World *w, const Player *player, const EntityWorld *ew)
+{
+	u16 i;
+	(void)player;
+
+	for (i = 0; i < MAX_MONSTERS; i++) {
+		const Monster *m = &ew->monsters[i];
+		SVECTOR v[4];
+		Rgb8 c0, c1, c2, c3;
+		i16 floor_y;
+		i32 mx, mz;
+		i16 half = 18;
+		i16 tall = 56;
+
+		if (!m->active) {
+			continue;
+		}
+
+		mx = m->x >> 12;
+		mz = m->z >> 12;
+		floor_y = 0;
+		if (m->sector >= 0 && (u16)m->sector < w->sector_count) {
+			floor_y = w->sectors[m->sector].floor_y;
+			{
+				Rgb8 light = w->sectors[m->sector].light;
+				Rgb8 albedo = { 220, 60, 60 };
+				if (m->state == MON_DEAD) {
+					albedo.r = 80; albedo.g = 40; albedo.b = 40;
+					tall = 16;
+				} else if (m->state == MON_PAIN) {
+					albedo.r = 255; albedo.g = 220; albedo.b = 220;
+				} else if (m->state == MON_ATTACK) {
+					albedo.r = 255; albedo.g = 120; albedo.b = 40;
+				}
+				c0 = world_shade(albedo, light);
+				c1 = c0;
+				c2 = c0;
+				c3 = c0;
+			}
+			} else {
+			c0.r = 200; c0.g = 40; c0.b = 40;
+			c1 = c0;
+			c2 = c0;
+			c3 = c0;
+		}
+
+		/* Axis-aligned billboard quad in X (cheap sprite stand-in). */
+		setVector(&v[0], (i16)(mx - half), floor_y, (i16)mz);
+		setVector(&v[1], (i16)(mx + half), floor_y, (i16)mz);
+		setVector(&v[2], (i16)(mx - half), (i16)(floor_y - tall), (i16)mz);
+		setVector(&v[3], (i16)(mx + half), (i16)(floor_y - tall), (i16)mz);
+
+		if (!submit_gquad(&v[0], &v[1], &v[2], &v[3], c0, c1, c2, c3, 1)) {
+			submit_gquad(&v[1], &v[0], &v[3], &v[2], c1, c0, c3, c2, 1);
+		}
 	}
-	FntPrint(-1, "x=%d z=%d yaw=%d\n", player->x >> 12, player->z >> 12, player->yaw);
+}
+
+void r_draw_flash(const Player *player)
+{
+	TILE *tile;
+	u8 a;
+
+	if (player->flash == 0) {
+		return;
+	}
+
+	/* Top strip muzzle / pain flash (opaque; avoids semi-trans setup). */
+	a = (u8)(40 + player->flash * 20);
+	tile = (TILE *)g_ctx.next;
+	setTile(tile);
+	setXY0(tile, 0, 0);
+	setWH(tile, SCREEN_W, 24);
+	setRGB0(tile, a, a / 4, a / 5);
+	addPrim(&g_ctx.buf[g_ctx.active].ot[0], tile);
+	g_ctx.next += sizeof(TILE);
+}
+
+void r_draw_hud(const Player *player)
+{
+	FntPrint(-1, "M3 combat  HP:%d  AMMO:%d\n", player->health, player->ammo);
+	FntPrint(-1, "Cross=fire  sec=%d\n", player->sector);
+	if (player->health <= 0) {
+		FntPrint(-1, "YOU ARE DEAD\n");
+	}
 	FntFlush(-1);
 }

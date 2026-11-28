@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 project(
 	doomps1
 	LANGUAGES C
-	VERSION 0.2.0
+	VERSION 0.3.0
 	DESCRIPTION "From-scratch PS1 Doom-style engine (PAL 320x256)"
 )
 
@@ -22,6 +22,8 @@ set(ENGINE_SOURCES
 	src/player/player.c
 	src/resources/mapbin.c
 	src/resources/map_embedded.c
+	src/entities/monster.c
+	src/weapons/hitscan.c
 )
 
 psn00bsdk_add_executable(doomps1 GPREL ${ENGINE_SOURCES})

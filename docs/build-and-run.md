@@ -37,15 +37,16 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (M2):** first-person walk in a **cooked FreeDoom E1M1 subset** (AABB floors, linedef walls, static tints). Fixture `maps/tworoom.json` still cooks for regression.
+**Expected (M3):** cooked FreeDoom E1M1 subset + **one enemy**; **Cross/Square** fires hitscan; HUD HP/ammo; silent flash feedback.
 
 | Input | Action |
 |-------|--------|
 | D-pad Up/Down | Forward / back |
 | D-pad Left/Right | Tank turn |
-| L1 / R1 (or L2 / R2) | Strafe |
+| L1 / L2 / R2 | Strafe |
+| Cross / Square | Fire hitscan |
 
-On-screen font shows sector, light RGB, vis count, position. Audio is silent (stub).
+Audio is silent (stub).
 
 ### Re-cook FreeDoom (host)
 
@@ -61,4 +62,4 @@ make
 
 - **M0–M1.5:** hello tri → two-room walk → colored static lighting  
 - **M2:** WAD→`.map.bin` cooker + embedded FreeDoom E1M1 subset  
-- **M3:** combat loop (hitscan + monster) next
+- **M3:** hitscan + one monster FSM + HUD (audio still stub)
