@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
  */
 #include "engine/player.h"
+#include "engine/audio.h"
 
 #include <psxgte.h>
 
@@ -9,6 +10,9 @@
 #define MOVE_SPEED    6
 #define TURN_SPEED    32
 #define PLAYER_RADIUS 12
+#define FOOTSTEP_TICKS 12
+
+static u16 s_foot_cd;
 
 void player_init(Player *p, const World *w)
 {
@@ -26,6 +30,7 @@ void player_init(Player *p, const World *w)
 	p->has_weapon[WPN_SHOTGUN] = 0;
 	p->has_weapon[WPN_CHAINGUN] = 0;
 	p->fire_cooldown = 0;
+	s_foot_cd = 0;
 }
 
 void player_tick(Player *p, const World *w, const PadState *pad)
@@ -33,9 +38,11 @@ void player_tick(Player *p, const World *w, const PadState *pad)
 	i32 dx = 0, dz = 0, wx, wz;
 	i16 yaw;
 	u8 i;
+	bool moving;
 
 	if (p->flash > 0) p->flash--;
 	if (p->fire_cooldown > 0) p->fire_cooldown--;
+	if (s_foot_cd > 0) s_foot_cd--;
 	if (p->health <= 0) return;
 
 	if (pad->weapon_next) {
@@ -67,6 +74,7 @@ void player_tick(Player *p, const World *w, const PadState *pad)
 		dz -= (isin(yaw) * MOVE_SPEED) >> 12;
 	}
 
+	moving = (dx != 0 || dz != 0);
 	wx = p->x >> 12;
 	wz = p->z >> 12;
 	world_move_cylinder(w, &p->sector, &wx, &wz, dx, dz, PLAYER_RADIUS);
@@ -74,5 +82,9 @@ void player_tick(Player *p, const World *w, const PadState *pad)
 	p->z = wz << 12;
 	if (p->sector >= 0) {
 		p->y = (w->sectors[p->sector].floor_y - EYE_HEIGHT) << 12;
+	}
+	if (moving && s_foot_cd == 0) {
+		audio_play_sfx(SFX_FOOTSTEP);
+		s_foot_cd = FOOTSTEP_TICKS;
 	}
 }

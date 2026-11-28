@@ -5,8 +5,8 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
 	doomps1
-	LANGUAGES C
-	VERSION 0.5.0
+	LANGUAGES    C ASM
+	VERSION 0.6.0
 	DESCRIPTION "From-scratch PS1 Doom-style engine (PAL 320x256)"
 )
 
@@ -34,6 +34,15 @@ psn00bsdk_add_executable(doomps1 GPREL ${ENGINE_SOURCES})
 
 target_include_directories(doomps1 PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_compile_definitions(doomps1 PRIVATE ENGINE_PAL=1)
+
+# Plan M6: placeholder ADPCM .VAG bank (regenerate via tools/gen_vag_placeholders.py)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_pistol    ${PROJECT_SOURCE_DIR}/assets/sfx/pistol.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_shotgun   ${PROJECT_SOURCE_DIR}/assets/sfx/shotgun.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_chaingun  ${PROJECT_SOURCE_DIR}/assets/sfx/chaingun.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_hurt      ${PROJECT_SOURCE_DIR}/assets/sfx/hurt.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_footstep  ${PROJECT_SOURCE_DIR}/assets/sfx/footstep.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_music_loop ${PROJECT_SOURCE_DIR}/assets/sfx/music_loop.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE sfx_silence   ${PROJECT_SOURCE_DIR}/assets/sfx/silence.vag)
 
 psn00bsdk_add_cd_image(
 	doomps1_iso
