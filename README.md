@@ -7,16 +7,19 @@ From-scratch **PlayStation 1** Doom-*style* engine by Johannes Brorsson.
 | | |
 |---|---|
 | Toolchain | **PSn00bSDK + Nugget** (`mipsel-none-elf`) |
-| Video | **PAL 320×256** |
+| Video | **PAL 320×256**, dither off |
 | License | **Proprietary / All Rights Reserved** — see `LICENSE` |
-| Canonical branch | **`engine`** (orphan trunk; leave legacy `master` alone) |
+| Canonical branch | **`engine`** |
 
-## M0 status
+## Current milestone — M1
 
-- Clear-screen + colored gouraud triangle via Ordering Table  
-- VSync double-buffer loop  
-- Doom-like pad poll stub (tank move/turn, shoulder strafe)  
-- Audio no-op stub  
+Two connected rooms you can walk through with Doom-like tank + strafe controls.
+
+- Portal/sector graph (hand-authored test map)  
+- Flat 1-quad floors & ceilings  
+- Linedef wall quads (GTE → OT)  
+- Double-buffered ordering table  
+- Audio stub  
 
 ## Quick start
 
@@ -24,7 +27,7 @@ From-scratch **PlayStation 1** Doom-*style* engine by Johannes Brorsson.
 ./scripts/setup-psn00bsdk.sh
 source third_party/psn00bsdk/env.sh
 make
-# Open build/doomps1.cue in DuckStation (BIOS required on your machine)
+# DuckStation → open build/doomps1.cue (BIOS required on your machine)
 ```
 
 Full instructions: [docs/build-and-run.md](docs/build-and-run.md).
@@ -32,11 +35,12 @@ Full instructions: [docs/build-and-run.md](docs/build-and-run.md).
 ## Layout
 
 ```
-include/engine/   public headers (platform, render, pad, audio, time, …)
-src/              boot, render OT path, pad, audio stub, main loop
-docs/             build / DuckStation notes
-scripts/          PSn00bSDK setup helper
-Dockerfile        optional Linux SDK image
+include/engine/   public headers
+src/platform/     boot / VSync
+src/render/       GPU OT + GTE world submit
+src/world/        sectors, portals, collision, two-room map
+src/player/       tank + strafe movement
+src/pad/          BIOS pad poll
+src/audio/        no-op stub
+tools/            WAD cooker stub (host, later)
 ```
-
-Later milestones add world/sectors, WAD→cooker (FreeDoom), entities, weapons, and SPU audio — see the project design plan (not duplicated here).
