@@ -37,14 +37,15 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (plan M3 budgeted):** FreeDoom E1M1 subset with **map-spawned enemies**, **exit goal**, far LOD, silent **muzzle particles**. Reach exit for `EXIT!`.
+**Expected (plan M4 slice):** budgeted FreeDoom subset + **doors** (Triangle), **pickups**, **pistol/shotgun/chaingun** (Circle cycles), staggered AI, exit.
 
 | Input | Action |
 |-------|--------|
-| D-pad Up/Down | Forward / back |
-| D-pad Left/Right | Tank turn |
+| D-pad | Move / tank turn |
 | L1 / L2 / R2 | Strafe |
-| Cross / Square | Fire hitscan + muzzle FX |
+| Cross / Square | Fire (chaingun full-auto while held) |
+| Circle | Next weapon |
+| Triangle | Use door / elevator |
 
 Audio is silent (stub).
 
@@ -64,4 +65,4 @@ make
 - **M2:** WAD→`.map.bin` cooker + embedded FreeDoom E1M1 subset  
 - **Combat:** hitscan + monster FSM + HUD  
 - **Plan M3 budgeted:** cooker budgets, things/exit, LOD, muzzle FX  
-- **Plan M4:** doors, pickups, multi-weapon, staggered AI (next)
+- **Plan M4:** doors/elevators, pickups, 3 weapons, staggered AI  

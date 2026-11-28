@@ -6,7 +6,7 @@
 
 #define WALL_ALBEDO 180, 180, 180, 0
 
-static const Wall g_walls[] = {
+static Wall g_walls[] = {
 	{ -200, -200,  200, -200, -1, WALL_ALBEDO },
 	{  200, -200,  200,  200, -1, WALL_ALBEDO },
 	{  200,  200,   80,  200, -1, WALL_ALBEDO },
@@ -21,7 +21,7 @@ static const Wall g_walls[] = {
 	{   80,  200,  200,  200, -1, WALL_ALBEDO },
 };
 
-static const Sector g_sectors[] = {
+static Sector g_sectors[] = {
 	{
 		.floor_y = 0, .ceil_y = -180,
 		.color_id = 1, .brightness = 220,
