@@ -6,13 +6,14 @@ cmake_minimum_required(VERSION 3.21)
 project(
 	doomps1
 	LANGUAGES C
-	VERSION 0.4.0
+	VERSION 0.5.0
 	DESCRIPTION "From-scratch PS1 Doom-style engine (PAL 320x256)"
 )
 
 set(ENGINE_SOURCES
 	src/main.c
 	src/platform/boot.c
+	src/platform/disc.c
 	src/render/gpu.c
 	src/pad/pad.c
 	src/audio/audio.c
@@ -39,6 +40,9 @@ psn00bsdk_add_cd_image(
 	doomps1
 	iso.xml
 	DEPENDS doomps1 system.cnf LICENSE
+		${PROJECT_SOURCE_DIR}/assets/disc/map.bin
+		${PROJECT_SOURCE_DIR}/assets/disc/prefetch.toc.txt
+		${PROJECT_SOURCE_DIR}/assets/disc/sfx_placeholder.bin
 )
 
 install(FILES ${PROJECT_BINARY_DIR}/doomps1.exe TYPE BIN)

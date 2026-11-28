@@ -2,13 +2,14 @@
 <!--
 	Processed by CMake / mkpsxiso. Paths are relative to the build directory
 	unless prefixed with ${PROJECT_SOURCE_DIR}.
+	Plan M5: DATA/ payloads for map + prefetch TOC + SFX placeholder.
 -->
 <iso_project>
 	<track type="data">
 		<identifiers
 			system			="PLAYSTATION"
-			volume			="DOOMPS1_M4"
-			volume_set		="DOOMPS1_M4"
+			volume			="DOOMPS1_M5"
+			volume_set		="DOOMPS1_M5"
 			publisher		="JOHANNES_BRORSSON"
 			data_preparer	="PSN00BSDK ${PSN00BSDK_VERSION}"
 			application		="PLAYSTATION"
@@ -19,6 +20,14 @@
 			<file name="SYSTEM.CNF"	type="data" source="${PROJECT_SOURCE_DIR}/system.cnf" />
 			<file name="DOOMPS1.EXE"	type="data" source="doomps1.exe" />
 			<file name="LICENSE"	type="data" source="${PROJECT_SOURCE_DIR}/LICENSE" />
+			<dir name="DATA">
+				<file name="MAP.BIN" type="data"
+					source="${PROJECT_SOURCE_DIR}/assets/disc/map.bin" />
+				<file name="PREFETC.TOC" type="data"
+					source="${PROJECT_SOURCE_DIR}/assets/disc/prefetch.toc.txt" />
+				<file name="SFX.BIN" type="data"
+					source="${PROJECT_SOURCE_DIR}/assets/disc/sfx_placeholder.bin" />
+			</dir>
 			<dummy sectors="1024"/>
 		</directory_tree>
 	</track>

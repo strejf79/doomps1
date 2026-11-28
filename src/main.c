@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
  *
- * Plan M4 vertical slice: doors/elevators, pickups, 3 weapons, staggered AI.
- * Audio remains stub.
+ * Plan M5 disc scaffolding on M4 slice: prefetch + fail-soft CD path.
+ * Audio remains stub until M6.
  */
 #include "engine/audio.h"
+#include "engine/disc.h"
 #include "engine/doors.h"
 #include "engine/entities.h"
 #include "engine/fx.h"
@@ -51,19 +52,35 @@ int main(int argc, const char **argv)
 	(void)argc;
 	(void)argv;
 
-	printf("doomps1 plan-M4: vertical slice PAL %dx%d\n", SCREEN_W, SCREEN_H);
+	printf("doomps1 plan-M5: disc layout PAL %dx%d\n", SCREEN_W, SCREEN_H);
 
 	plat_init();
+	disc_init();
 	r_init();
 	pad_init();
 	audio_init();
 	time_init();
 	fx_init(&fx);
 
-	blob = mapbin_embedded(&blob_size);
-	if (mapbin_load(blob, blob_size, &map) != 0) {
-		for (;;) plat_vsync();
+	/* Fail-soft: prefer disc MAP.BIN when present; else embedded. */
+	{
+		static u8 disc_map[12288];
+		u32 disc_sz = 0;
+		if (disc_seek_read("\\DATA\\MAP.BIN;1", disc_map, sizeof(disc_map), &disc_sz) == DISC_OK
+			&& disc_sz > 0 && mapbin_load(disc_map, disc_sz, &map) == 0) {
+			printf("map: loaded from disc (%u bytes)\n", disc_sz);
+		} else {
+			blob = mapbin_embedded(&blob_size);
+			if (mapbin_load(blob, blob_size, &map) != 0) {
+				for (;;) plat_vsync();
+			}
+			printf("map: embedded fallback (%u bytes)\n", blob_size);
+		}
 	}
+
+	/* Queue adjacent / bank paths — warmed in disc_update, never blocks tick. */
+	disc_prefetch("\\DATA\\SFX.BIN;1", 1);
+	disc_prefetch("\\DATA\\PREFETC.TOC;1", 2);
 
 	player_init(&player, &map.world);
 	map_apply_spawn(&map, &player);
@@ -104,6 +121,7 @@ int main(int argc, const char **argv)
 		r_draw_hud(&player, map.exited);
 		r_end_frame();
 
+		disc_update();
 		audio_update();
 	}
 	return 0;
