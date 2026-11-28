@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
  * Double-buffered OT + GTE hybrid 2.5D with colored static Gouraud lighting.
  *
- * Walls/floors use POLY_G4 (untextured gouraud). POLY_GT* lands with atlases.
+ * Floors/ceilings: POLY_G4. Walls: POLY_GT4 + 4bpp brick TIM atlas.
  */
 #include "engine/render.h"
 
@@ -31,6 +31,28 @@ typedef struct RenderCtx {
 } RenderCtx;
 
 static RenderCtx g_ctx;
+static u16 g_wall_tpage;
+static u16 g_wall_clut;
+static bool g_wall_tex_ok;
+
+extern const u32 tex_wall64[];
+
+static void r_load_wall_texture(void)
+{
+	TIM_IMAGE tim;
+
+	GetTimInfo(tex_wall64, &tim);
+	if (tim.mode & 0x8) {
+		LoadImage(tim.crect, tim.caddr);
+	}
+	LoadImage(tim.prect, tim.paddr);
+	DrawSync(0);
+	g_wall_tpage = getTPage((int)(tim.mode & 0x3), 0, tim.prect->x, tim.prect->y);
+	g_wall_clut = getClut(tim.crect->x, tim.crect->y);
+	g_wall_tex_ok = true;
+	printf("tex: wall64 tpage=%u clut=%u mode=%u\n",
+		g_wall_tpage, g_wall_clut, (unsigned)tim.mode);
+}
 
 void r_init(void)
 {
@@ -56,6 +78,8 @@ void r_init(void)
 	InitGeom();
 	gte_SetGeomOffset(SCREEN_W / 2, SCREEN_H / 2);
 	gte_SetGeomScreen(SCREEN_W / 2);
+
+	r_load_wall_texture();
 
 	FntLoad(960, 0);
 	FntOpen(8, 8, 304, 72, 0, 160);
@@ -85,22 +109,22 @@ void r_end_frame(void)
 	ClearOTagR(g_ctx.buf[g_ctx.active].ot, OT_LEN);
 }
 
-static int gquad_offscreen(const POLY_G4 *q)
+static int xy4_offscreen(i16 x0, i16 y0, i16 x1, i16 y1, i16 x2, i16 y2, i16 x3, i16 y3)
 {
-	i16 minx = q->x0, maxx = q->x0, miny = q->y0, maxy = q->y0;
+	i16 minx = x0, maxx = x0, miny = y0, maxy = y0;
 
-	if (q->x1 < minx) minx = q->x1;
-	if (q->x2 < minx) minx = q->x2;
-	if (q->x3 < minx) minx = q->x3;
-	if (q->x1 > maxx) maxx = q->x1;
-	if (q->x2 > maxx) maxx = q->x2;
-	if (q->x3 > maxx) maxx = q->x3;
-	if (q->y1 < miny) miny = q->y1;
-	if (q->y2 < miny) miny = q->y2;
-	if (q->y3 < miny) miny = q->y3;
-	if (q->y1 > maxy) maxy = q->y1;
-	if (q->y2 > maxy) maxy = q->y2;
-	if (q->y3 > maxy) maxy = q->y3;
+	if (x1 < minx) minx = x1;
+	if (x2 < minx) minx = x2;
+	if (x3 < minx) minx = x3;
+	if (x1 > maxx) maxx = x1;
+	if (x2 > maxx) maxx = x2;
+	if (x3 > maxx) maxx = x3;
+	if (y1 < miny) miny = y1;
+	if (y2 < miny) miny = y2;
+	if (y3 < miny) miny = y3;
+	if (y1 > maxy) maxy = y1;
+	if (y2 > maxy) maxy = y2;
+	if (y3 > maxy) maxy = y3;
 
 	return (maxx < 0 || minx >= SCREEN_W || maxy < 0 || miny >= SCREEN_H);
 }
@@ -141,7 +165,7 @@ static int submit_gquad(
 	gte_rtps();
 	gte_stsxy(&poly->x3);
 
-	if (gquad_offscreen(poly)) {
+	if (xy4_offscreen(poly->x0, poly->y0, poly->x1, poly->y1, poly->x2, poly->y2, poly->x3, poly->y3)) {
 		return 0;
 	}
 
@@ -158,6 +182,72 @@ static int submit_gquad(
 
 	addPrim(&g_ctx.buf[g_ctx.active].ot[p >> 2], poly);
 	g_ctx.next += sizeof(POLY_G4);
+	assert(g_ctx.next <= &g_ctx.buf[g_ctx.active].prims[PRIM_BUF_LEN]);
+	return 1;
+}
+
+static int submit_gtquad(
+	SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3,
+	Rgb8 c0, Rgb8 c1, Rgb8 c2, Rgb8 c3,
+	u8 u0, u8 v0t, u8 u1, u8 v1t, u8 u2, u8 v2t, u8 u3, u8 v3t,
+	int backface_cull
+)
+{
+	int p;
+	POLY_GT4 *poly;
+
+	if (!g_wall_tex_ok) {
+		return submit_gquad(v0, v1, v2, v3, c0, c1, c2, c3, backface_cull);
+	}
+
+	gte_ldv3(v0, v1, v2);
+	gte_rtpt();
+
+	if (backface_cull) {
+		gte_nclip();
+		gte_stopz(&p);
+		if (p <= 0) {
+			return 0;
+		}
+	}
+
+	gte_avsz3();
+	gte_stotz(&p);
+	if ((p >> 2) <= 0 || (p >> 2) >= OT_LEN) {
+		return 0;
+	}
+
+	poly = (POLY_GT4 *)g_ctx.next;
+	setPolyGT4(poly);
+	gte_stsxy0(&poly->x0);
+	gte_stsxy1(&poly->x1);
+	gte_stsxy2(&poly->x2);
+
+	gte_ldv0(v3);
+	gte_rtps();
+	gte_stsxy(&poly->x3);
+
+	if (xy4_offscreen(poly->x0, poly->y0, poly->x1, poly->y1, poly->x2, poly->y2, poly->x3, poly->y3)) {
+		return 0;
+	}
+
+	gte_avsz4();
+	gte_stotz(&p);
+	if ((p >> 2) <= 0 || (p >> 2) >= OT_LEN) {
+		return 0;
+	}
+
+	setRGB0(poly, c0.r, c0.g, c0.b);
+	setRGB1(poly, c1.r, c1.g, c1.b);
+	setRGB2(poly, c2.r, c2.g, c2.b);
+	setRGB3(poly, c3.r, c3.g, c3.b);
+	setUVWH(poly, 0, 0, 64, 64);
+	(void)u0; (void)v0t; (void)u1; (void)v1t; (void)u2; (void)v2t; (void)u3; (void)v3t;
+	poly->tpage = g_wall_tpage;
+	poly->clut = g_wall_clut;
+
+	addPrim(&g_ctx.buf[g_ctx.active].ot[p >> 2], poly);
+	g_ctx.next += sizeof(POLY_GT4);
 	assert(g_ctx.next <= &g_ctx.buf[g_ctx.active].prims[PRIM_BUF_LEN]);
 	return 1;
 }
@@ -215,10 +305,13 @@ static int draw_wall(const World *w, i16 sec_i, const Wall *wall)
 	setVector(&v[2], wall->x0, s->ceil_y, wall->z0);
 	setVector(&v[3], wall->x1, s->ceil_y, wall->z1);
 
-	if (submit_gquad(&v[0], &v[1], &v[2], &v[3], c0, c1, c2, c3, 1)) {
+	/* Bottom-left → bottom-right → top-left → top-right; UVs cover full 64² brick. */
+	if (submit_gtquad(&v[0], &v[1], &v[2], &v[3], c0, c1, c2, c3,
+			0, 63, 63, 63, 0, 0, 63, 0, 1)) {
 		return 1;
 	}
-	return submit_gquad(&v[1], &v[0], &v[3], &v[2], c1, c0, c3, c2, 1);
+	return submit_gtquad(&v[1], &v[0], &v[3], &v[2], c1, c0, c3, c2,
+			63, 63, 0, 63, 63, 0, 0, 0, 1);
 }
 
 static void setup_camera(const Player *player)

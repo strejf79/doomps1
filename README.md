@@ -11,18 +11,25 @@ From-scratch **PlayStation 1** Doom-*style* engine by Johannes Brorsson.
 | License | **Proprietary / All Rights Reserved** — see `LICENSE` |
 | Canonical branch | **`engine`** |
 
-## Current tip — post-M6 multi-map
+## Current tip
 
-Plan milestones **M0–M6** are on `engine`. Tip adds three budgeted FreeDoom subsets on disc (`MAP` / `MAP2` / `MAP3`); **Select** or **EXIT** advances the slot. SPU ADPCM SFX + music stub; disc prefetch fail-soft.
+Plan milestones **M0–M6** are on `engine` (multi-map disc slots + SPU stub). Active polish: **textured brick walls** (`POLY_GT4` + 4bpp TIM).
 
-## Quick start
+## Local PC (you + DuckStation)
+
+Playtest is **on your machine** (BIOS stays local). Short path:
 
 ```bash
-./scripts/setup-psn00bsdk.sh
+git clone https://github.com/strejf79/doomps1.git && cd doomps1
+git checkout engine && git pull
+./scripts/setup-psn00bsdk.sh          # Linux / WSL2
 source third_party/psn00bsdk/env.sh
 make
-# DuckStation → open build/doomps1.cue (BIOS required on your machine)
+# DuckStation PAL → build/doomps1.cue
 ```
+
+Full local handoff (Windows notes, controls, TTY): **[docs/local-dev.md](docs/local-dev.md)**.  
+Also: [docs/build-and-run.md](docs/build-and-run.md), [docs/disc-layout.md](docs/disc-layout.md).
 
 Optional re-cook (host IWAD, not vendored):
 
@@ -31,7 +38,6 @@ Optional re-cook (host IWAD, not vendored):
 make
 ```
 
-Full instructions: [docs/build-and-run.md](docs/build-and-run.md). Disc notes: [docs/disc-layout.md](docs/disc-layout.md).
 
 ## Layout
 

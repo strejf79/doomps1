@@ -2,6 +2,8 @@
 
 **Branch:** `engine` is the canonical from-scratch trunk. Do not merge the legacy `master` PSXDOOM-RE / psyq tree into it.
 
+**Moving to your PC?** Start with [`local-dev.md`](./local-dev.md) (clone → SDK → `make` → DuckStation PAL).
+
 ## Prerequisites
 
 1. **PSn00bSDK + Nugget** (`mipsel-none-elf` GCC)  
@@ -37,7 +39,7 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (post-M6):** M5 disc + M6 SPU SFX/music stub + **three** FreeDoom subsets (`MAP`/`MAP2`/`MAP3`). Prefer **PAL**.
+**Expected:** textured brick walls (POLY_GT4) + M5/M6 disc/audio + three FreeDoom subsets. Prefer **PAL**.
 
 | Input | Action |
 |-------|--------|

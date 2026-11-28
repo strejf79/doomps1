@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 project(
 	doomps1
 	LANGUAGES    C ASM
-	VERSION 0.6.1
+	VERSION 0.7.0
 	DESCRIPTION "From-scratch PS1 Doom-style engine (PAL 320x256)"
 )
 
@@ -43,6 +43,7 @@ psn00bsdk_target_incbin(doomps1 PRIVATE sfx_hurt      ${PROJECT_SOURCE_DIR}/asse
 psn00bsdk_target_incbin(doomps1 PRIVATE sfx_footstep  ${PROJECT_SOURCE_DIR}/assets/sfx/footstep.vag)
 psn00bsdk_target_incbin(doomps1 PRIVATE sfx_music_loop ${PROJECT_SOURCE_DIR}/assets/sfx/music_loop.vag)
 psn00bsdk_target_incbin(doomps1 PRIVATE sfx_silence   ${PROJECT_SOURCE_DIR}/assets/sfx/silence.vag)
+psn00bsdk_target_incbin(doomps1 PRIVATE tex_wall64    ${PROJECT_SOURCE_DIR}/assets/tex/wall64.tim)
 
 psn00bsdk_add_cd_image(
 	doomps1_iso
