@@ -11,8 +11,8 @@
      export PSN00BSDK_LIBS=/path/to/lib/libpsn00b
      export PATH=/path/to/bin:$PATH
      ```
-2. **CMake ≥ 3.21** and **Ninja** (or change the preset generator).
-3. **DuckStation** on your machine, with a **PS1 BIOS** already configured (not redistributed here).
+2. **CMake ≥ 3.21** and **Ninja** (bundled with the SDK zip is fine).
+3. **DuckStation** with a **PS1 BIOS** already configured (not redistributed here).
 
 Optional: `docker build -t doomps1-sdk .` then `docker run --rm -v "$PWD":/src -w /src doomps1-sdk make`.
 
@@ -30,28 +30,25 @@ Artifacts under `build/`:
 | `doomps1.exe` | PS-EXE |
 | `doomps1.bin` / `doomps1.cue` | CD image for DuckStation |
 
-Equivalent CMake:
+## Run in DuckStation (M1)
 
-```bash
-cmake --preset default .
-cmake --build ./build
-```
+1. Open DuckStation → BIOS set (Settings → BIOS).
+2. Prefer **PAL** console / region (framebuffer is **320×256**).
+3. File → Boot CD Image → `build/doomps1.cue`.
+4. Enable TTY if you want the boot `printf`.
 
-## Run in DuckStation
+**Expected M1:** first-person view of a flat-shaded room; walk into the second room through the north opening.
 
-1. Open DuckStation → ensure BIOS is set (Settings → BIOS).
-2. Prefer PAL console / region settings for this build (framebuffer is **320×256**).
-3. File → Boot CD Image → select `build/doomps1.cue`.
-4. Enable TTY / console logging if you want the `printf` boot line.
+| Input | Action |
+|-------|--------|
+| D-pad Up/Down | Forward / back |
+| D-pad Left/Right | Tank turn |
+| L1 / R1 (or L2 / R2) | Strafe |
 
-**Expected M0 picture:** dark blue clear, one gouraud-colored triangle centered on screen. D-pad moves it (tank forward/back + turn); L1/R1 (or L2/R2) strafe. No audio.
+On-screen font shows sector index, vis count, and position. Audio is silent (stub).
 
-## What this milestone does *not* include
+## Milestone notes
 
-- FreeDoom / WAD cooker (starts after M0)
-- Real SPU / music
-- Any PSXDOOM-RE or psyq code
-
-## Cloud / CI note
-
-If the Nugget toolchain or PSn00bSDK zip cannot be installed in an environment (egress, missing release asset, etc.), sources remain compilable once `PSN00BSDK_LIBS` is valid. A missing toolchain is a setup failure, not a successful hardware run.
+- **M0:** clear + hello triangle  
+- **M1:** two connected rooms, portal flood, cylinder collision, GTE + double OT, dither off  
+- FreeDoom / WAD cooker: skeleton only (`tools/wad_cooker_stub.md`); not required to load FreeDoom yet
