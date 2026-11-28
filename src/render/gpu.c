@@ -15,7 +15,7 @@
 /* entities.h pulled via render.h */
 
 #define OT_LEN       256
-#define PRIM_BUF_LEN 24576
+#define PRIM_BUF_LEN 32768
 
 typedef struct RenderBuffer {
 	DISPENV disp;
@@ -259,6 +259,11 @@ void r_draw_world(const World *w, const Player *player)
 
 		draw_sector_flats(w, sec);
 
+		/* Far LOD: skip detailed walls (flat floor/ceil only). */
+		if (s->lod != 0) {
+			continue;
+		}
+
 		for (j = 0; j < s->wall_count; j++) {
 			const Wall *wall = &w->walls[s->wall_begin + j];
 			walls_drawn += (u16)draw_wall(w, sec, wall);
@@ -346,12 +351,26 @@ void r_draw_flash(const Player *player)
 	g_ctx.next += sizeof(TILE);
 }
 
-void r_draw_hud(const Player *player)
+void r_draw_particle_tile(i16 x, i16 y, i16 w, i16 h, u8 r, u8 g, u8 b)
 {
-	FntPrint(-1, "M3 combat  HP:%d  AMMO:%d\n", player->health, player->ammo);
+	TILE *tile = (TILE *)g_ctx.next;
+	setTile(tile);
+	setXY0(tile, x, y);
+	setWH(tile, w, h);
+	setRGB0(tile, r, g, b);
+	addPrim(&g_ctx.buf[g_ctx.active].ot[0], tile);
+	g_ctx.next += sizeof(TILE);
+	assert(g_ctx.next <= &g_ctx.buf[g_ctx.active].prims[PRIM_BUF_LEN]);
+}
+
+void r_draw_hud(const Player *player, bool exited)
+{
+	FntPrint(-1, "M3 budgeted  HP:%d  AMMO:%d\n", player->health, player->ammo);
 	FntPrint(-1, "Cross=fire  sec=%d\n", player->sector);
 	if (player->health <= 0) {
 		FntPrint(-1, "YOU ARE DEAD\n");
+	} else if (exited) {
+		FntPrint(-1, "EXIT!\n");
 	}
 	FntFlush(-1);
 }

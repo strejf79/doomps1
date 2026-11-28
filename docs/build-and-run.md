@@ -37,14 +37,14 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (M3):** cooked FreeDoom E1M1 subset + **one enemy**; **Cross/Square** fires hitscan; HUD HP/ammo; silent flash feedback.
+**Expected (plan M3 budgeted):** FreeDoom E1M1 subset with **map-spawned enemies**, **exit goal**, far LOD, silent **muzzle particles**. Reach exit for `EXIT!`.
 
 | Input | Action |
 |-------|--------|
 | D-pad Up/Down | Forward / back |
 | D-pad Left/Right | Tank turn |
 | L1 / L2 / R2 | Strafe |
-| Cross / Square | Fire hitscan |
+| Cross / Square | Fire hitscan + muzzle FX |
 
 Audio is silent (stub).
 
@@ -62,4 +62,6 @@ make
 
 - **M0–M1.5:** hello tri → two-room walk → colored static lighting  
 - **M2:** WAD→`.map.bin` cooker + embedded FreeDoom E1M1 subset  
-- **M3:** hitscan + one monster FSM + HUD (audio still stub)
+- **Combat:** hitscan + monster FSM + HUD  
+- **Plan M3 budgeted:** cooker budgets, things/exit, LOD, muzzle FX  
+- **Plan M4:** doors, pickups, multi-weapon, staggered AI (next)
