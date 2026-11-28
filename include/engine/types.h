@@ -23,8 +23,8 @@ typedef i32 fix16_t;
 #define SCREEN_H 256
 
 /* Hard vis budget for M1 (plan: ≤32–48 later). */
-#define MAX_SECTORS     8
-#define MAX_WALLS       32
-#define MAX_VIS_SECTORS 8
+#define MAX_SECTORS     48
+#define MAX_WALLS       512
+#define MAX_VIS_SECTORS 24
 
 #endif /* ENGINE_TYPES_H */

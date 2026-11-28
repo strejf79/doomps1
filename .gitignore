@@ -1,13 +1,17 @@
 # Build
 /build/
 /out/
-*.exe
 *.elf
 *.map
 *.cpe
-*.bin
 *.cue
 *.iso
+/build/*.bin
+/out/*.bin
+*.exe
+
+# Keep cooked map binaries
+!assets/**/*.map.bin
 
 # Toolchain / IDE
 .cache/
@@ -18,6 +22,7 @@ compile_commands.json
 *.user
 .DS_Store
 
-# PSn00bSDK local install (optional)
+# Local SDK / FreeDoom downloads (cook locally)
 /third_party/psn00bsdk/
+/third_party/freedoom/
 /opt/
