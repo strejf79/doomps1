@@ -37,7 +37,7 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (plan M6 audio):** M5 disc path + **SPU ADPCM** weapon/hurt/footstep SFX and looping music stub (silence bed by default). Prefer **PAL**.
+**Expected (post-M6):** M5 disc + M6 SPU SFX/music stub + **three** FreeDoom subsets (`MAP`/`MAP2`/`MAP3`). Prefer **PAL**.
 
 | Input | Action |
 |-------|--------|
@@ -46,6 +46,8 @@ Artifacts under `build/`:
 | Cross / Square | Fire + weapon SFX |
 | Circle | Next weapon |
 | Triangle | Use door / elevator |
+| Select | Next map slot |
+| EXIT | Auto-advances after a short hold |
 
 Disc layout: [`disc-layout.md`](./disc-layout.md). Regenerate SFX: `python3 tools/gen_vag_placeholders.py`.
 
@@ -56,10 +58,8 @@ Disc layout: [`disc-layout.md`](./disc-layout.md). Regenerate SFX: `python3 tool
 ### Re-cook FreeDoom (host)
 
 ```bash
-# Download FreeDoom IWAD yourself, then:
-python3 tools/cook_map.py --wad path/to/freedoom1.wad --map E1M1 \
-  --scale 8 --max-sectors 10 \
-  -o assets/maps/freedoom_e1m1.map.bin --embed src/resources/map_embedded.c
+# Download FreeDoom IWAD yourself (not vendored), then:
+./scripts/cook-freedoom-maps.sh path/to/freedoom1.wad
 make
 ```
 
@@ -70,5 +70,7 @@ make
 - **Combat:** hitscan + monster FSM + HUD  
 - **Plan M3 budgeted:** cooker budgets, things/exit, LOD, muzzle FX  
 - **Plan M4:** doors/elevators, pickups, 3 weapons, staggered AI  
-- **Plan M5 (partial):** cue/bin `DATA/` layout, prefetch + fail-soft seeks, PAL notes (DuckStation proxy; no real hardware)  
-- **Plan M6:** SPU ADPCM SFX bank + silence/test music stub; weapon/hurt/footstep wired  
+- **Plan M5 (partial):** cue/bin `DATA/` layout, prefetch + fail-soft seeks (no real hardware here)  
+- **Plan M6:** SPU ADPCM SFX + music stub  
+- **Post-M6:** E1M1–E1M3 disc slots; Select / EXIT advances  
+

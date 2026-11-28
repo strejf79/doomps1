@@ -1,8 +1,9 @@
-# doomps1 prefetch TOC (plan M5) — host-authored adjacency hints
+# doomps1 prefetch TOC — host-authored adjacency hints
 # Format: PATH PRIORITY
 # Paths are ISO9660 8.3 under DATA/. Runtime queues these without blocking ticks.
-# DuckStation proxies seek latency; real PS1 will be slower — fail-soft keeps play.
 
 \DATA\MAP.BIN;1 0
-\DATA\SFX.BIN;1 1
-\LICENSE;1 2
+\DATA\MAP2.BIN;1 1
+\DATA\MAP3.BIN;1 2
+\DATA\SFX.BIN;1 3
+\LICENSE;1 4

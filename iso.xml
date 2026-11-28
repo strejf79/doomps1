@@ -8,8 +8,8 @@
 	<track type="data">
 		<identifiers
 			system			="PLAYSTATION"
-			volume			="DOOMPS1_M6"
-			volume_set		="DOOMPS1_M6"
+			volume			="DOOMPS1_M6X"
+			volume_set		="DOOMPS1_M6X"
 			publisher		="JOHANNES_BRORSSON"
 			data_preparer	="PSN00BSDK ${PSN00BSDK_VERSION}"
 			application		="PLAYSTATION"
@@ -23,6 +23,10 @@
 			<dir name="DATA">
 				<file name="MAP.BIN" type="data"
 					source="${PROJECT_SOURCE_DIR}/assets/disc/map.bin" />
+				<file name="MAP2.BIN" type="data"
+					source="${PROJECT_SOURCE_DIR}/assets/disc/map2.bin" />
+				<file name="MAP3.BIN" type="data"
+					source="${PROJECT_SOURCE_DIR}/assets/disc/map3.bin" />
 				<file name="PREFETC.TOC" type="data"
 					source="${PROJECT_SOURCE_DIR}/assets/disc/prefetch.toc.txt" />
 				<file name="SFX.BIN" type="data"

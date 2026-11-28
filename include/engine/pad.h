@@ -16,6 +16,7 @@ typedef struct PadState {
 	bool fire_pressed;
 	bool use_pressed;   /* Triangle — doors */
 	bool weapon_next;   /* Circle — cycle weapons */
+	bool select_pressed; /* Select — next map */
 } PadState;
 
 void pad_init(void);

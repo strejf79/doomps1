@@ -20,7 +20,7 @@ void r_end_frame(void);
 void r_draw_world(const World *w, const Player *player);
 void r_draw_monsters(const World *w, const Player *player, const EntityWorld *ew);
 void r_draw_items(const World *w, const ItemWorld *items);
-void r_draw_hud(const Player *player, bool exited);
+void r_draw_hud(const Player *player, bool exited, const char *map_name);
 void r_draw_flash(const Player *player);
 void r_draw_particle_tile(i16 x, i16 y, i16 w, i16 h, u8 r, u8 g, u8 b);
 

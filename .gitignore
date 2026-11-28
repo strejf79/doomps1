@@ -26,3 +26,6 @@ compile_commands.json
 /third_party/psn00bsdk/
 /third_party/freedoom/
 /opt/
+
+# Host-only FreeDoom IWAD (not vendored)
+third_party/iwads/

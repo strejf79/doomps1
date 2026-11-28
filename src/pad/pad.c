@@ -11,11 +11,12 @@ static u8 g_pad_buf[2][34];
 static bool g_fire_prev;
 static bool g_use_prev;
 static bool g_wpn_prev;
+static bool g_sel_prev;
 
 void pad_init(void)
 {
 	memset(g_pad_buf, 0xff, sizeof(g_pad_buf));
-	g_fire_prev = g_use_prev = g_wpn_prev = false;
+	g_fire_prev = g_use_prev = g_wpn_prev = g_sel_prev = false;
 	InitPAD(g_pad_buf[0], 34, g_pad_buf[1], 34);
 	StartPAD();
 	ChangeClearPAD(0);
@@ -24,14 +25,14 @@ void pad_init(void)
 void pad_poll(PadState *out)
 {
 	PADTYPE *pad;
-	bool fire_now, use_now, wpn_now;
+	bool fire_now, use_now, wpn_now, sel_now;
 
 	memset(out, 0, sizeof(*out));
 	out->buttons = 0xffff;
 
 	pad = (PADTYPE *)g_pad_buf[0];
 	if (pad->stat != 0 || (pad->type != 0x4 && pad->type != 0x5 && pad->type != 0x7)) {
-		g_fire_prev = g_use_prev = g_wpn_prev = false;
+		g_fire_prev = g_use_prev = g_wpn_prev = g_sel_prev = false;
 		return;
 	}
 
@@ -48,12 +49,15 @@ void pad_poll(PadState *out)
 	fire_now = (!(pad->btn & PAD_CROSS) || !(pad->btn & PAD_SQUARE));
 	use_now = !(pad->btn & PAD_TRIANGLE);
 	wpn_now = !(pad->btn & PAD_CIRCLE);
+	sel_now = !(pad->btn & PAD_SELECT);
 
 	out->fire = fire_now;
 	out->fire_pressed = fire_now && !g_fire_prev;
 	out->use_pressed = use_now && !g_use_prev;
 	out->weapon_next = wpn_now && !g_wpn_prev;
+	out->select_pressed = sel_now && !g_sel_prev;
 	g_fire_prev = fire_now;
 	g_use_prev = use_now;
 	g_wpn_prev = wpn_now;
+	g_sel_prev = sel_now;
 }

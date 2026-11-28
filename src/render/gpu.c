@@ -393,14 +393,15 @@ void r_draw_items(const World *w, const ItemWorld *items)
 	}
 }
 
-void r_draw_hud(const Player *player, bool exited)
+void r_draw_hud(const Player *player, bool exited, const char *map_name)
 {
 	const char *wpn = "PISTOL";
 	if (player->weapon == WPN_SHOTGUN) wpn = "SHOTGUN";
 	else if (player->weapon == WPN_CHAINGUN) wpn = "CHAINGUN";
-	FntPrint(-1, "M4  HP:%d AMMO:%d %s\n", player->health, player->ammo, wpn);
-	FntPrint(-1, "X=fire O=wpn /\\=use\n");
+	FntPrint(-1, "%s HP:%d AM:%d %s\n",
+		map_name ? map_name : "MAP", player->health, player->ammo, wpn);
+	FntPrint(-1, "X fire O wpn /\\ use Sel next\n");
 	if (player->health <= 0) FntPrint(-1, "YOU ARE DEAD\n");
-	else if (exited) FntPrint(-1, "EXIT!\n");
+	else if (exited) FntPrint(-1, "EXIT! next...\n");
 	FntFlush(-1);
 }

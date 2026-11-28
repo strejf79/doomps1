@@ -11,15 +11,9 @@ From-scratch **PlayStation 1** Doom-*style* engine by Johannes Brorsson.
 | License | **Proprietary / All Rights Reserved** — see `LICENSE` |
 | Canonical branch | **`engine`** |
 
-## Current milestone — M1
+## Current tip — post-M6 multi-map
 
-Two connected rooms you can walk through with Doom-like tank + strafe controls.
-
-- Portal/sector graph (hand-authored test map)  
-- Flat 1-quad floors & ceilings  
-- Linedef wall quads (GTE → OT)  
-- Double-buffered ordering table  
-- Audio stub  
+Plan milestones **M0–M6** are on `engine`. Tip adds three budgeted FreeDoom subsets on disc (`MAP` / `MAP2` / `MAP3`); **Select** or **EXIT** advances the slot. SPU ADPCM SFX + music stub; disc prefetch fail-soft.
 
 ## Quick start
 
@@ -30,17 +24,29 @@ make
 # DuckStation → open build/doomps1.cue (BIOS required on your machine)
 ```
 
-Full instructions: [docs/build-and-run.md](docs/build-and-run.md).
+Optional re-cook (host IWAD, not vendored):
+
+```bash
+./scripts/cook-freedoom-maps.sh /path/to/freedoom1.wad
+make
+```
+
+Full instructions: [docs/build-and-run.md](docs/build-and-run.md). Disc notes: [docs/disc-layout.md](docs/disc-layout.md).
 
 ## Layout
 
 ```
 include/engine/   public headers
-src/platform/     boot / VSync
+src/platform/     boot / VSync / disc
 src/render/       GPU OT + GTE world submit
-src/world/        sectors, portals, collision, two-room map
+src/world/        sectors, portals, doors
 src/player/       tank + strafe movement
-src/pad/          BIOS pad poll
-src/audio/        no-op stub
-tools/            WAD cooker stub (host, later)
+src/entities/     monsters
+src/weapons/      hitscan weapons
+src/items/        pickups
+src/audio/        SPU ADPCM + music stub
+src/fx/           muzzle particles
+tools/            WAD → .map.bin cooker (host)
+assets/disc/      CD DATA payloads
+assets/maps/      cooked FreeDoom subsets
 ```
