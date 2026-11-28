@@ -2,6 +2,8 @@
 
 **Branch:** `engine` is the canonical from-scratch trunk. Do not merge the legacy `master` PSXDOOM-RE / psyq tree into it.
 
+**Moving to your PC?** Start with [`local-dev.md`](./local-dev.md) (clone → SDK → `make` → DuckStation PAL).
+
 ## Prerequisites
 
 1. **PSn00bSDK + Nugget** (`mipsel-none-elf` GCC)  
