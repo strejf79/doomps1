@@ -22,7 +22,7 @@ int main(int argc, const char **argv)
 	(void)argc;
 	(void)argv;
 
-	printf("doomps1 M1: two-room walk PAL %dx%d\n", SCREEN_W, SCREEN_H);
+	printf("doomps1 M1.5: colored static lighting PAL %dx%d\n", SCREEN_W, SCREEN_H);
 
 	plat_init();
 	r_init();

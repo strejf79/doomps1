@@ -227,3 +227,76 @@ void world_move_cylinder(
 		}
 	}
 }
+
+Rgb8 world_shade(Rgb8 albedo, Rgb8 light)
+{
+	Rgb8 out;
+
+	out.r = (u8)((albedo.r * light.r) / 255);
+	out.g = (u8)((albedo.g * light.g) / 255);
+	out.b = (u8)((albedo.b * light.b) / 255);
+	return out;
+}
+
+static int point_on_portal_seg(const Wall *wall, i16 x, i16 z)
+{
+	i16 minx, maxx, minz, maxz;
+
+	if (wall->x0 == wall->x1) {
+		/* Vertical portal */
+		if (x != wall->x0) {
+			return 0;
+		}
+		minz = wall->z0 < wall->z1 ? wall->z0 : wall->z1;
+		maxz = wall->z0 > wall->z1 ? wall->z0 : wall->z1;
+		return z >= minz && z <= maxz;
+	}
+	if (wall->z0 == wall->z1) {
+		/* Horizontal portal — allow 1-unit sector AABB snap (max_z=199 vs z=200). */
+		if (z != wall->z0 && z != wall->z0 - 1 && z != wall->z0 + 1) {
+			return 0;
+		}
+		minx = wall->x0 < wall->x1 ? wall->x0 : wall->x1;
+		maxx = wall->x0 > wall->x1 ? wall->x0 : wall->x1;
+		return x >= minx && x <= maxx;
+	}
+	return (wall->x0 == x && wall->z0 == z) || (wall->x1 == x && wall->z1 == z);
+}
+
+Rgb8 world_vert_light(const World *w, i16 sector, i16 x, i16 z)
+{
+	const Sector *s;
+	Rgb8 a;
+	u16 i;
+
+	if (sector < 0 || (u16)sector >= w->sector_count) {
+		Rgb8 black = { 0, 0, 0 };
+		return black;
+	}
+
+	s = &w->sectors[sector];
+	a = s->light;
+
+	/* Soft blend when this vert sits on a portal opening. */
+	for (i = 0; i < s->wall_count; i++) {
+		const Wall *wall = &w->walls[s->wall_begin + i];
+		i16 dest = wall->portal_to;
+
+		if (dest < 0 || (u16)dest >= w->sector_count) {
+			continue;
+		}
+		if (!point_on_portal_seg(wall, x, z)) {
+			continue;
+		}
+
+		{
+			Rgb8 b = w->sectors[dest].light;
+			a.r = (u8)(((u16)a.r + b.r) / 2);
+			a.g = (u8)(((u16)a.g + b.g) / 2);
+			a.b = (u8)(((u16)a.b + b.b) / 2);
+			return a;
+		}
+	}
+
+	return a;
+}
