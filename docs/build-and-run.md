@@ -37,7 +37,7 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (plan M4 slice):** budgeted FreeDoom subset + **doors** (Triangle), **pickups**, **pistol/shotgun/chaingun** (Circle cycles), staggered AI, exit.
+**Expected (plan M5 disc):** M4 slice + CD `DATA/` payloads, fail-soft map load from disc, prefetch stubs. Prefer **PAL** region.
 
 | Input | Action |
 |-------|--------|
@@ -47,7 +47,11 @@ Artifacts under `build/`:
 | Circle | Next weapon |
 | Triangle | Use door / elevator |
 
-Audio is silent (stub).
+Audio is silent until **M6**. Disc layout details: [`disc-layout.md`](./disc-layout.md).
+
+```bash
+./scripts/verify-disc-layout.sh   # after make
+```
 
 ### Re-cook FreeDoom (host)
 
@@ -66,3 +70,5 @@ make
 - **Combat:** hitscan + monster FSM + HUD  
 - **Plan M3 budgeted:** cooker budgets, things/exit, LOD, muzzle FX  
 - **Plan M4:** doors/elevators, pickups, 3 weapons, staggered AI  
+- **Plan M5 (partial):** cue/bin `DATA/` layout, prefetch + fail-soft seeks, PAL notes (DuckStation proxy; no real hardware)  
+- **Plan M6:** SPU ADPCM SFX + music stub (next)  
