@@ -7,8 +7,8 @@
 	<track type="data">
 		<identifiers
 			system			="PLAYSTATION"
-			volume			="DOOMPS1_M1"
-			volume_set		="DOOMPS1_M1"
+			volume			="DOOMPS1_M15"
+			volume_set		="DOOMPS1_M15"
 			publisher		="JOHANNES_BRORSSON"
 			data_preparer	="PSN00BSDK ${PSN00BSDK_VERSION}"
 			application		="PLAYSTATION"
