@@ -1,79 +1,54 @@
 /*
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
- * Hitscan — ray in XZ vs monster cylinders.
+ * Pistol / shotgun / chaingun hitscan.
  */
 #include "engine/entities.h"
 
 #include <psxgte.h>
 
-#define HIT_DAMAGE   15
-#define HIT_RANGE    500
-#define MON_HIT_RAD  18
+#define MON_HIT_RAD 18
 
-static i32 iabs32(i32 v)
-{
-	return v < 0 ? -v : v;
-}
+static i32 iabs32(i32 v) { return v < 0 ? -v : v; }
 
-i16 weapon_hitscan(EntityWorld *ew, const World *w, Player *player)
+static i16 hitscan_ray(
+	EntityWorld *ew,
+	Player *player,
+	i16 yaw,
+	i16 damage,
+	i16 range
+)
 {
-	i32 ox, oz, dx, dz;
+	i32 ox = player->x >> 12;
+	i32 oz = player->z >> 12;
+	i32 dx = -isin(yaw);
+	i32 dz = icos(yaw);
 	i16 best = -1;
-	i32 best_t = HIT_RANGE;
+	i32 best_t = range;
 	u16 i;
-	(void)w;
-
-	if (player->ammo <= 0 || player->health <= 0) {
-		return 0;
-	}
-
-	player->ammo--;
-	player->flash = 3; /* muzzle feedback (silent) */
-
-	ox = player->x >> 12;
-	oz = player->z >> 12;
-	/* Ray dir matching movement convention. */
-	dx = -isin(player->yaw);
-	dz = icos(player->yaw);
 
 	for (i = 0; i < MAX_MONSTERS; i++) {
 		Monster *m = &ew->monsters[i];
 		i32 mx, mz, fx, fz, t, px, pz, dist;
-
-		if (!m->active || m->state == MON_DEAD) {
-			continue;
-		}
-
+		if (!m->active || m->state == MON_DEAD) continue;
 		mx = m->x >> 12;
 		mz = m->z >> 12;
 		fx = mx - ox;
 		fz = mz - oz;
-
-		/* Project onto look dir (ONE-space). */
 		t = (fx * dx + fz * dz) >> 12;
-		if (t < 8 || t > HIT_RANGE) {
-			continue;
-		}
-
+		if (t < 8 || t > range) continue;
 		px = ox + ((dx * t) >> 12);
 		pz = oz + ((dz * t) >> 12);
 		dist = iabs32(px - mx) + iabs32(pz - mz);
-		if (dist > MON_HIT_RAD) {
-			continue;
-		}
+		if (dist > MON_HIT_RAD) continue;
 		if (t < best_t) {
 			best_t = t;
 			best = (i16)i;
 		}
 	}
-
-	if (best < 0) {
-		return 0;
-	}
-
+	if (best < 0) return 0;
 	{
 		Monster *m = &ew->monsters[best];
-		m->health -= HIT_DAMAGE;
+		m->health -= damage;
 		if (m->health <= 0) {
 			m->health = 0;
 			m->state = MON_DEAD;
@@ -83,5 +58,42 @@ i16 weapon_hitscan(EntityWorld *ew, const World *w, Player *player)
 			m->state_t = 0;
 		}
 	}
-	return HIT_DAMAGE;
+	return damage;
+}
+
+static i16 fire_common(Player *player, u16 cooldown, i16 ammo_cost)
+{
+	if (player->ammo < ammo_cost || player->health <= 0) return -1;
+	if (player->fire_cooldown > 0) return -1;
+	player->ammo = (i16)(player->ammo - ammo_cost);
+	player->fire_cooldown = cooldown;
+	player->flash = 3;
+	return 0;
+}
+
+i16 weapon_hitscan(EntityWorld *ew, const World *w, Player *player)
+{
+	(void)w;
+	if (fire_common(player, 8, 1) < 0) return -1;
+	return hitscan_ray(ew, player, player->yaw, 15, 500);
+}
+
+i16 weapon_shotgun(EntityWorld *ew, const World *w, Player *player)
+{
+	i16 total = 0;
+	i16 pel;
+	(void)w;
+	if (fire_common(player, 22, 2) < 0) return -1;
+	for (pel = -2; pel <= 2; pel++) {
+		i16 yaw = (i16)((player->yaw + pel * 48) & 4095);
+		total = (i16)(total + hitscan_ray(ew, player, yaw, 8, 280));
+	}
+	return total;
+}
+
+i16 weapon_chaingun(EntityWorld *ew, const World *w, Player *player)
+{
+	(void)w;
+	if (fire_common(player, 3, 1) < 0) return -1;
+	return hitscan_ray(ew, player, player->yaw, 10, 450);
 }

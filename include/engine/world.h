@@ -35,8 +35,8 @@ typedef struct Sector {
 } Sector;
 
 typedef struct World {
-	const Sector *sectors;
-	const Wall   *walls;
+	Sector *sectors;
+	Wall   *walls;
 	u16 sector_count;
 	u16 wall_count;
 } World;

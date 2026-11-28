@@ -363,14 +363,44 @@ void r_draw_particle_tile(i16 x, i16 y, i16 w, i16 h, u8 r, u8 g, u8 b)
 	assert(g_ctx.next <= &g_ctx.buf[g_ctx.active].prims[PRIM_BUF_LEN]);
 }
 
+void r_draw_items(const World *w, const ItemWorld *items)
+{
+	u16 i;
+	(void)w;
+	for (i = 0; i < items->count; i++) {
+		const Item *it = &items->items[i];
+		SVECTOR v[4];
+		Rgb8 c = { 80, 220, 80 };
+		i16 x, z, y0;
+		if (!it->active) continue;
+		if (it->kind == ITEM_AMMO) { c.r = 220; c.g = 200; c.b = 40; }
+		else if (it->kind == ITEM_SHOTGUN) { c.r = 40; c.g = 120; c.b = 255; }
+		else if (it->kind == ITEM_CHAINGUN) { c.r = 255; c.g = 120; c.b = 40; }
+		x = it->x;
+		z = it->z;
+		y0 = 0;
+		if (it->sector >= 0 && (u16)it->sector < w->sector_count) {
+			y0 = w->sectors[it->sector].floor_y;
+			c = world_shade(c, w->sectors[it->sector].light);
+		}
+		setVector(&v[0], (i16)(x - 8), y0, z);
+		setVector(&v[1], (i16)(x + 8), y0, z);
+		setVector(&v[2], (i16)(x - 8), (i16)(y0 - 16), z);
+		setVector(&v[3], (i16)(x + 8), (i16)(y0 - 16), z);
+		if (!submit_gquad(&v[0], &v[1], &v[2], &v[3], c, c, c, c, 1)) {
+			submit_gquad(&v[1], &v[0], &v[3], &v[2], c, c, c, c, 1);
+		}
+	}
+}
+
 void r_draw_hud(const Player *player, bool exited)
 {
-	FntPrint(-1, "M3 budgeted  HP:%d  AMMO:%d\n", player->health, player->ammo);
-	FntPrint(-1, "Cross=fire  sec=%d\n", player->sector);
-	if (player->health <= 0) {
-		FntPrint(-1, "YOU ARE DEAD\n");
-	} else if (exited) {
-		FntPrint(-1, "EXIT!\n");
-	}
+	const char *wpn = "PISTOL";
+	if (player->weapon == WPN_SHOTGUN) wpn = "SHOTGUN";
+	else if (player->weapon == WPN_CHAINGUN) wpn = "CHAINGUN";
+	FntPrint(-1, "M4  HP:%d AMMO:%d %s\n", player->health, player->ammo, wpn);
+	FntPrint(-1, "X=fire O=wpn /\\=use\n");
+	if (player->health <= 0) FntPrint(-1, "YOU ARE DEAD\n");
+	else if (exited) FntPrint(-1, "EXIT!\n");
 	FntFlush(-1);
 }
