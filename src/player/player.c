@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
- * Doom-like tank controls: turn + forward/back; strafe on L1/R1.
+ * Doom-like tank controls + vitals.
  */
 #include "engine/player.h"
 
@@ -14,12 +14,14 @@
 void player_init(Player *p, const World *w)
 {
 	(void)w;
-	/* Spawn center of room 0, facing +Z toward the portal. */
 	p->x = 0 << 12;
 	p->y = (-EYE_HEIGHT) << 12;
 	p->z = 0 << 12;
 	p->yaw = 0;
 	p->sector = 0;
+	p->health = 100;
+	p->ammo = 50;
+	p->flash = 0;
 }
 
 void player_tick(Player *p, const World *w, const PadState *pad)
@@ -29,7 +31,14 @@ void player_tick(Player *p, const World *w, const PadState *pad)
 	i32 wx, wz;
 	i16 yaw;
 
-	/* Match PSn00bSDK fpscam yaw: left increases vy. */
+	if (p->flash > 0) {
+		p->flash--;
+	}
+
+	if (p->health <= 0) {
+		return;
+	}
+
 	if (pad->turn < 0) {
 		p->yaw = (i16)((p->yaw + TURN_SPEED) & 4095);
 	} else if (pad->turn > 0) {
@@ -38,10 +47,6 @@ void player_tick(Player *p, const World *w, const PadState *pad)
 
 	yaw = p->yaw;
 
-	/*
-	 * Forward (fpscam): vx -= sin(yaw), vz += cos(yaw) at yaw=0 → +Z.
-	 * Strafe right: vx += cos(yaw), vz += sin(yaw).
-	 */
 	if (pad->forward > 0) {
 		dx -= (isin(yaw) * MOVE_SPEED) >> 12;
 		dz += (icos(yaw) * MOVE_SPEED) >> 12;
