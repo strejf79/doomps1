@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Cook intermediate JSON or Doom WAD → .map.bin + optional C embed.
+"""Cook intermediate JSON or Doom WAD → DPM1 v2 .map.bin (+ C embed).
 
 Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
-Clean-room cooker — does not use PSXDOOM-RE / Doom engine source.
+Hardens FreeDoom subsets under RAM budgets; emits things + exit.
 """
 from __future__ import annotations
 
@@ -10,22 +10,43 @@ import argparse
 import json
 import struct
 import sys
+from collections import deque
 from pathlib import Path
 
 MAGIC = 0x314D5044  # DPM1
-VERSION = 1
+VERSION = 2
 
-# Pack structs matching mapbin.h (little-endian)
-HDR_FMT = "<IHHHhhhhH"  # magic,ver,sec,wall, spawn_x,z,yaw,sector,reserved
-SEC_FMT = "<hhBBBBBBhhhhHH"
+BUDGET_SECTORS = 24
+BUDGET_WALLS = 384
+BUDGET_THINGS = 32
+BUDGET_BYTES = 12288
+
+HDR_FMT = "<IHHHH hhhh hhh HH"  # magic ver sec wall thing | spawnxyz yaw sec | exitxyz sec | flags reserved
+# Actually: I H H H H  h h h h  h h h  H H
+HDR_FMT = "<IHHHH hhhh hhh HH".replace(" ", "")
+SEC_FMT = "<hhBBBBBBhhhhHH"  # lod in last of 4 pad bytes (was pad)
 WALL_FMT = "<hhhhhBBBB"
+THING_FMT = "<HhhhHH"
+
+THING_PLAYER = 1
+THING_EXIT = 999
+THING_ZOMBIE = 3004
+THING_IMP = 3001
+THING_SHOTGUN = 2001
+THING_AMMO = 2007
+THING_HEALTH = 2014
+THING_CHAINGUN = 2002
+
+ENEMY_TYPES = {3004, 3001, 9, 3002, 3003, 3005, 3006}
+PICKUP_TYPES = {2001, 2002, 2007, 2014, 2011, 2012, 2018}
+EXIT_LINE_SPECIALS = {11, 51, 52, 124}
 
 
 def shade(rgb, brightness: int):
     return tuple(min(255, (c * brightness) // 255) for c in rgb)
 
 
-def write_mapbin(path: Path, sectors, walls, spawn) -> None:
+def write_mapbin(path: Path, sectors, walls, things, spawn, exit_info, flags=0) -> bytes:
     buf = bytearray()
     buf += struct.pack(
         HDR_FMT,
@@ -33,10 +54,15 @@ def write_mapbin(path: Path, sectors, walls, spawn) -> None:
         VERSION,
         len(sectors),
         len(walls),
+        len(things),
         spawn["x"],
         spawn["z"],
         spawn.get("yaw", 0),
         spawn["sector"],
+        exit_info.get("x", 0),
+        exit_info.get("z", 0),
+        exit_info.get("sector", -1),
+        flags,
         0,
     )
     for s in sectors:
@@ -50,7 +76,7 @@ def write_mapbin(path: Path, sectors, walls, spawn) -> None:
             light[0],
             light[1],
             light[2],
-            0,
+            s.get("lod", 0),
             s["min_x"],
             s["max_x"],
             s["min_z"],
@@ -69,11 +95,35 @@ def write_mapbin(path: Path, sectors, walls, spawn) -> None:
             w.get("ar", 180),
             w.get("ag", 180),
             w.get("ab", 180),
-            0,
+            w.get("flags", 0),
         )
+    for t in things:
+        buf += struct.pack(
+            THING_FMT,
+            t["type"],
+            t["x"],
+            t["z"],
+            t.get("angle", 0),
+            t.get("sector", 0),
+            t.get("flags", 0),
+        )
+
+    if len(buf) > BUDGET_BYTES:
+        raise SystemExit(f"BUDGET FAIL: map is {len(buf)} bytes > {BUDGET_BYTES}")
+    if len(sectors) > BUDGET_SECTORS:
+        raise SystemExit(f"BUDGET FAIL: {len(sectors)} sectors > {BUDGET_SECTORS}")
+    if len(walls) > BUDGET_WALLS:
+        raise SystemExit(f"BUDGET FAIL: {len(walls)} walls > {BUDGET_WALLS}")
+    if len(things) > BUDGET_THINGS:
+        raise SystemExit(f"BUDGET FAIL: {len(things)} things > {BUDGET_THINGS}")
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(buf)
-    print(f"wrote {path} ({len(buf)} bytes, {len(sectors)} sectors, {len(walls)} walls)")
+    print(
+        f"wrote {path} ({len(buf)} bytes, {len(sectors)} secs, {len(walls)} walls, "
+        f"{len(things)} things, exit_sec={exit_info.get('sector', -1)})"
+    )
+    return bytes(buf)
 
 
 def emit_c_embed(bin_path: Path, c_path: Path, symbol: str = "g_mapbin_blob") -> None:
@@ -87,12 +137,7 @@ def emit_c_embed(bin_path: Path, c_path: Path, symbol: str = "g_mapbin_blob") ->
     for i in range(0, len(data), 12):
         chunk = data[i : i + 12]
         lines.append("\t" + ", ".join(f"0x{b:02x}" for b in chunk) + ",")
-    lines += [
-        "};",
-        "",
-        f"const u32 {symbol}_size = {len(data)};",
-        "",
-    ]
+    lines += [ "};", "", f"const u32 {symbol}_size = {len(data)};", "" ]
     c_path.parent.mkdir(parents=True, exist_ok=True)
     c_path.write_text("\n".join(lines))
     print(f"wrote {c_path}")
@@ -100,7 +145,9 @@ def emit_c_embed(bin_path: Path, c_path: Path, symbol: str = "g_mapbin_blob") ->
 
 def from_json(path: Path):
     doc = json.loads(path.read_text())
-    return doc["sectors"], doc["walls"], doc["spawn"]
+    things = doc.get("things", [])
+    exit_info = doc.get("exit", {"x": 0, "z": 500, "sector": 1})
+    return doc["sectors"], doc["walls"], things, doc["spawn"], exit_info
 
 
 def read_wad_lumps(data: bytes):
@@ -126,7 +173,6 @@ def find_map_marker(order, mapname: str):
 
 
 def parse_map(lumps, order, marker_idx: int):
-    # Collect lumps until next map marker
     names = []
     i = marker_idx + 1
     while i < len(order):
@@ -135,24 +181,20 @@ def parse_map(lumps, order, marker_idx: int):
             break
         names.append(n)
         i += 1
-    need = ["VERTEXES", "LINEDEFS", "SIDEDEFS", "SECTORS", "THINGS"]
-    for n in need:
+
+    for n in ("VERTEXES", "LINEDEFS", "SIDEDEFS", "SECTORS"):
         if n not in lumps or n not in names:
-            # THINGS optional for geometry-only
-            if n == "THINGS":
-                continue
-            raise SystemExit(f"missing lump {n} for map")
+            raise SystemExit(f"missing lump {n}")
 
     verts = []
     raw = lumps["VERTEXES"]
     for i in range(0, len(raw), 4):
         x, y = struct.unpack_from("<hh", raw, i)
-        verts.append((x, y))  # Doom Y → our Z
+        verts.append((x, y))
 
     sides = []
     raw = lumps["SIDEDEFS"]
     for i in range(0, len(raw), 30):
-        _xoff, _yoff = struct.unpack_from("<hh", raw, i)
         sector = struct.unpack_from("<h", raw, i + 28)[0]
         sides.append(sector)
 
@@ -161,13 +203,15 @@ def parse_map(lumps, order, marker_idx: int):
     for i in range(0, len(raw), 26):
         floor_h, ceil_h = struct.unpack_from("<hh", raw, i)
         light = struct.unpack_from("<h", raw, i + 16)[0]
-        sectors.append({"floor": floor_h, "ceil": ceil_h, "light": light})
+        special = struct.unpack_from("<h", raw, i + 18)[0]
+        tag = struct.unpack_from("<h", raw, i + 20)[0]
+        sectors.append({"floor": floor_h, "ceil": ceil_h, "light": light, "special": special, "tag": tag})
 
     lines = []
     raw = lumps["LINEDEFS"]
     for i in range(0, len(raw), 14):
         v0, v1, flags, special, tag, rside, lside = struct.unpack_from("<hhhhhhh", raw, i)
-        lines.append((v0, v1, flags, rside, lside))
+        lines.append((v0, v1, flags, special, tag, rside, lside))
 
     things = []
     if "THINGS" in lumps and "THINGS" in names:
@@ -183,33 +227,34 @@ def cook_wad_subset(wad_path: Path, mapname: str, scale: int, max_sectors: int):
     data = wad_path.read_bytes()
     lumps, order = read_wad_lumps(data)
     idx = find_map_marker(order, mapname)
-    verts, sides, doom_secs, lines, things = parse_map(lumps, order, idx)
+    verts, sides, doom_secs, lines, doom_things = parse_map(lumps, order, idx)
 
-    # Player start
     spawn_x = spawn_z = 0
     spawn_angle = 0
-    for x, y, angle, typ, _flags in things:
+    for x, y, angle, typ, _flags in doom_things:
         if typ == 1:
             spawn_x, spawn_z, spawn_angle = x, y, angle
             break
 
-    # Build adjacency: sector -> list of (linedef info)
     sec_lines = {i: [] for i in range(len(doom_secs))}
-    for v0, v1, flags, rside, lside in lines:
+    exit_candidates = []
+    for v0, v1, flags, special, tag, rside, lside in lines:
         if rside < 0 or rside >= len(sides):
             continue
         rs = sides[rside]
         ls = sides[lside] if 0 <= lside < len(sides) else -1
         x0, z0 = verts[v0]
         x1, z1 = verts[v1]
-        sec_lines[rs].append((x0, z0, x1, z1, ls if ls != rs else -1))
+        door_flag = 1 if (flags & 0x20) or special in (1, 26, 27, 28, 31, 32, 33, 34) else 0
+        sec_lines[rs].append((x0, z0, x1, z1, ls if ls != rs else -1, door_flag, special))
         if ls >= 0 and ls != rs:
-            sec_lines[ls].append((x1, z1, x0, z0, rs))
+            sec_lines[ls].append((x1, z1, x0, z0, rs, door_flag, special))
+        if special in EXIT_LINE_SPECIALS:
+            exit_candidates.append(((x0 + x1) // 2, (z0 + z1) // 2, rs))
 
-    # Find start sector by point-in-AABB of all sectors (build temp AABBs)
     def aabb_for(si):
         xs, zs = [], []
-        for x0, z0, x1, z1, _p in sec_lines[si]:
+        for x0, z0, x1, z1, _p, _d, _s in sec_lines[si]:
             xs += [x0, x1]
             zs += [z0, z1]
         if not xs:
@@ -223,22 +268,22 @@ def cook_wad_subset(wad_path: Path, mapname: str, scale: int, max_sectors: int):
             start_sec = si
             break
 
-    # Flood from start through portals
-    from collections import deque
-
-    seen = set()
+    # BFS with hard cap (stop enqueueing when full)
+    seen = []
+    seen_set = set()
     q = deque([start_sec])
-    seen.add(start_sec)
+    seen_set.add(start_sec)
+    seen.append(start_sec)
     while q and len(seen) < max_sectors:
         cur = q.popleft()
-        for _x0, _z0, _x1, _z1, dest in sec_lines[cur]:
-            if dest >= 0 and dest not in seen:
-                seen.add(dest)
+        for _x0, _z0, _x1, _z1, dest, _df, _sp in sec_lines[cur]:
+            if dest >= 0 and dest not in seen_set and len(seen) < max_sectors:
+                seen_set.add(dest)
+                seen.append(dest)
                 q.append(dest)
 
-    remap = {old: new for new, old in enumerate(sorted(seen))}
+    remap = {old: new for new, old in enumerate(seen)}
 
-    # Distinct tints by lightlevel buckets + index for mood
     palette = [
         (255, 72, 48),
         (48, 160, 255),
@@ -248,21 +293,28 @@ def cook_wad_subset(wad_path: Path, mapname: str, scale: int, max_sectors: int):
         (255, 255, 220),
     ]
 
+    def S(v):
+        return int(v / scale)
+
     out_secs = []
     out_walls = []
-    for old in sorted(seen):
+    hop = {seen[0]: 0}
+    q2 = deque([seen[0]])
+    while q2:
+        c = q2.popleft()
+        for _a, _b, _c, _d, dest, _df, _sp in sec_lines[c]:
+            if dest in remap and dest not in hop:
+                hop[dest] = hop[c] + 1
+                q2.append(dest)
+
+    for old in seen:
         ds = doom_secs[old]
         minx, maxx, minz, maxz = aabb_for(old)
-        # scale
-        def S(v):
-            return int(v / scale)
-
         wall_begin = len(out_walls)
-        for x0, z0, x1, z1, dest in sec_lines[old]:
+        for x0, z0, x1, z1, dest, door_flag, _sp in sec_lines[old]:
             portal = remap[dest] if dest in remap else -1
-            # Skip portal walls that leave the subset
             if dest >= 0 and dest not in remap:
-                portal = -1  # treat as solid edge of subset
+                portal = -1
             out_walls.append(
                 {
                     "x0": S(x0),
@@ -273,60 +325,140 @@ def cook_wad_subset(wad_path: Path, mapname: str, scale: int, max_sectors: int):
                     "ar": 180,
                     "ag": 180,
                     "ab": 180,
+                    "flags": door_flag,
                 }
             )
         bri = max(32, min(255, int(ds["light"])))
         rgb = palette[remap[old] % len(palette)]
         light = shade(rgb, bri)
-        # Doom Y-up heights → PS1 Y-down: floor at 0 relative, ceil negative
-        floor_y = 0
         ceil_y = -max(40, min(200, S(ds["ceil"] - ds["floor"]) or 120))
+        lod = 1 if hop.get(old, 0) >= 3 else 0
         out_secs.append(
             {
-                "floor_y": floor_y,
+                "floor_y": 0,
                 "ceil_y": ceil_y,
                 "color_id": (remap[old] % 250) + 1,
                 "brightness": bri,
                 "light": light,
+                "lod": lod,
                 "min_x": S(minx),
                 "max_x": S(maxx),
                 "min_z": S(minz),
-                "max_z": S(maxz) - (1 if remap[old] == 0 else 0),
+                "max_z": S(maxz) - (1 if remap[old] == remap[start_sec] else 0),
                 "wall_begin": wall_begin,
                 "wall_count": len(out_walls) - wall_begin,
             }
         )
 
-    # Doom angle: 0 east, 90 north → our yaw 0 = +Z (north). yaw = (90 - angle) * 4096/360
+    def find_sector_scaled(sx, sz):
+        for si, s in enumerate(out_secs):
+            if s["min_x"] <= sx <= s["max_x"] and s["min_z"] <= sz <= s["max_z"]:
+                return si
+        return remap[start_sec]
+
+    out_things = []
+    for x, y, angle, typ, flags in doom_things:
+        if typ == 1:
+            continue
+        sx, sz = S(x), S(y)
+        # Only keep things inside cooked AABB flood
+        inside = False
+        for s in out_secs:
+            if s["min_x"] - 8 <= sx <= s["max_x"] + 8 and s["min_z"] - 8 <= sz <= s["max_z"] + 8:
+                inside = True
+                break
+        if not inside:
+            continue
+        if typ in ENEMY_TYPES or typ in PICKUP_TYPES:
+            out_type = typ
+            if typ == 9:
+                out_type = THING_ZOMBIE
+            out_things.append(
+                {
+                    "type": out_type,
+                    "x": sx,
+                    "z": sz,
+                    "angle": int(((90 - angle) * 4096) / 360) & 4095,
+                    "sector": find_sector_scaled(sx, sz),
+                    "flags": flags,
+                }
+            )
+        if len(out_things) >= BUDGET_THINGS - 1:
+            break
+
+    # Exit from linedef specials inside subset
+    exit_info = {"x": 0, "z": 0, "sector": -1}
+    for ex, ez, rs in exit_candidates:
+        if rs in remap:
+            exit_info = {"x": S(ex), "z": S(ez), "sector": remap[rs]}
+            out_things.append(
+                {
+                    "type": THING_EXIT,
+                    "x": exit_info["x"],
+                    "z": exit_info["z"],
+                    "angle": 0,
+                    "sector": exit_info["sector"],
+                    "flags": 0,
+                }
+            )
+            break
+    if exit_info["sector"] < 0 and out_secs:
+        # Fallback: farthest sector centroid as exit goal
+        far = max(seen, key=lambda s: hop.get(s, 0))
+        s = out_secs[remap[far]]
+        exit_info = {
+            "x": (s["min_x"] + s["max_x"]) // 2,
+            "z": (s["min_z"] + s["max_z"]) // 2,
+            "sector": remap[far],
+        }
+        out_things.append(
+            {
+                "type": THING_EXIT,
+                "x": exit_info["x"],
+                "z": exit_info["z"],
+                "angle": 0,
+                "sector": exit_info["sector"],
+                "flags": 0,
+            }
+        )
+
     yaw = int(((90 - spawn_angle) * 4096) / 360) & 4095
-    spawn = {
-        "x": int(spawn_x / scale),
-        "z": int(spawn_z / scale),
-        "yaw": yaw,
-        "sector": remap[start_sec],
-    }
-    return out_secs, out_walls, spawn
+    spawn = {"x": S(spawn_x), "z": S(spawn_z), "yaw": yaw, "sector": remap[start_sec]}
+
+    # Cap enemies for RAM
+    enemies = [t for t in out_things if t["type"] in ENEMY_TYPES or t["type"] in (THING_ZOMBIE, THING_IMP)]
+    others = [t for t in out_things if t not in enemies]
+    enemies = enemies[:16]
+    out_things = others + enemies
+    out_things = out_things[:BUDGET_THINGS]
+
+    return out_secs, out_walls, out_things, spawn, exit_info
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--json", type=Path, help="Intermediate JSON map")
-    ap.add_argument("--wad", type=Path, help="Doom IWAD/PWAD")
-    ap.add_argument("--map", default="MAP01", help="Map lump name")
-    ap.add_argument("--scale", type=int, default=4, help="Divide Doom units by this")
-    ap.add_argument("--max-sectors", type=int, default=12)
+    ap.add_argument("--json", type=Path)
+    ap.add_argument("--wad", type=Path)
+    ap.add_argument("--map", default="E1M1")
+    ap.add_argument("--scale", type=int, default=8)
+    ap.add_argument("--max-sectors", type=int, default=16)
     ap.add_argument("-o", "--output", type=Path, required=True)
-    ap.add_argument("--embed", type=Path, help="Also write C array for embedding")
+    ap.add_argument("--embed", type=Path)
     args = ap.parse_args()
 
+    if args.max_sectors > BUDGET_SECTORS:
+        raise SystemExit(f"--max-sectors cannot exceed budget {BUDGET_SECTORS}")
+
     if args.json:
-        sectors, walls, spawn = from_json(args.json)
+        sectors, walls, things, spawn, exit_info = from_json(args.json)
     elif args.wad:
-        sectors, walls, spawn = cook_wad_subset(args.wad, args.map, args.scale, args.max_sectors)
+        sectors, walls, things, spawn, exit_info = cook_wad_subset(
+            args.wad, args.map, args.scale, args.max_sectors
+        )
     else:
         ap.error("need --json or --wad")
 
-    write_mapbin(args.output, sectors, walls, spawn)
+    write_mapbin(args.output, sectors, walls, things, spawn, exit_info)
     if args.embed:
         emit_c_embed(args.output, args.embed)
 

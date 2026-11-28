@@ -1,18 +1,24 @@
 {
   "name": "tworoom",
   "spawn": { "x": 0, "z": 0, "yaw": 0, "sector": 0 },
+  "exit": { "x": 0, "z": 500, "sector": 1 },
+  "things": [
+    { "type": 3004, "x": 40, "z": 100, "angle": 0, "sector": 0, "flags": 0 },
+    { "type": 3001, "x": -40, "z": 400, "angle": 0, "sector": 1, "flags": 0 },
+    { "type": 999, "x": 0, "z": 500, "angle": 0, "sector": 1, "flags": 0 }
+  ],
   "sectors": [
     {
       "floor_y": 0, "ceil_y": -180,
       "color_id": 1, "brightness": 220,
-      "light": [255, 72, 48],
+      "light": [255, 72, 48], "lod": 0,
       "min_x": -200, "max_x": 200, "min_z": -200, "max_z": 199,
       "wall_begin": 0, "wall_count": 6
     },
     {
       "floor_y": 0, "ceil_y": -180,
       "color_id": 2, "brightness": 220,
-      "light": [48, 160, 255],
+      "light": [48, 160, 255], "lod": 0,
       "min_x": -200, "max_x": 200, "min_z": 200, "max_z": 600,
       "wall_begin": 6, "wall_count": 6
     }
