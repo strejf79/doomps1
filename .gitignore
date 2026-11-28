@@ -1,19 +1,23 @@
+# Build
 /build/
-/toolchain/
-/.vscode/
-/modern/.duckstation-path
+/out/
+*.exe
+*.elf
+*.map
+*.cpe
+*.bin
+*.cue
+*.iso
 
-# Retail disc contents and generated images are local-only.
-/PSXDOOM/GAME/CD/*
-!/PSXDOOM/GAME/CD/**/tmp.txt
-!/PSXDOOM/GAME/CD/PSXDOOM/ABIN/MOVIE.STR
-!/PSXDOOM/GAME/CD/SYSTEM.CNF
-/PSXDOOM/GAME/MAIN.EXE
-/PSXDOOM/GAME/*.bin
-/PSXDOOM/GAME/*.cue
-/PSXDOOM/GAME/doom.txt
-/PSXDOOM/GAME/doom_.txt
+# Toolchain / IDE
+.cache/
+.compile_commands.json
+compile_commands.json
+.vscode/
+.idea/
+*.user
+.DS_Store
 
-# Generated absolute-sector table copied back by mkpsxiso.
-/PSXDOOM/GAME/PSXCDABS.C
-/PSXDOOM/GAME/PSXCDABS.H
+# PSn00bSDK local install (optional)
+/third_party/psn00bsdk/
+/opt/
