@@ -12,11 +12,13 @@
 | `SYSTEM.CNF` | Boot config → `DOOMPS1.EXE` |
 | `DOOMPS1.EXE` | Engine PS-EXE |
 | `LICENSE` | Proprietary stub |
-| `DATA/MAP.BIN` | Cooked map copy (runtime still embeds for fail-soft) |
+| `DATA/MAP.BIN` | FreeDoom E1M1 subset (embedded fail-soft too) |
+| `DATA/MAP2.BIN` | FreeDoom E1M2 subset |
+| `DATA/MAP3.BIN` | FreeDoom E1M3 subset |
 | `DATA/PREFETC.TOC` | Prefetch adjacency list |
-| `DATA/SFX.BIN` | Placeholder SFX bank header (M6 fills ADPCM) |
+| `DATA/SFX.BIN` | Placeholder SFX bank header |
 
-Volume id: `DOOMPS1_M6` (was `DOOMPS1_M5` on the M5 PR). Single Mode-2 data track. SFX currently embed in the EXE via `.VAG` incbin; `DATA/SFX.BIN` remains a disc placeholder for a future streamed bank.
+Volume id: `DOOMPS1_M6X`. Single Mode-2 data track. SFX currently embed in the EXE via `.VAG` incbin; `DATA/SFX.BIN` remains a disc placeholder for a future streamed bank.
 
 ### Host checks
 

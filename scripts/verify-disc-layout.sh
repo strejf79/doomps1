@@ -22,10 +22,12 @@ grep -q 'name="DOOMPS1.EXE"' "$ISO_XML" || fail "iso.xml missing DOOMPS1.EXE"
 grep -q 'name="SYSTEM.CNF"' "$ISO_XML" || fail "iso.xml missing SYSTEM.CNF"
 grep -q 'name="DATA"' "$ISO_XML" || fail "iso.xml missing DATA dir"
 grep -q 'name="MAP.BIN"' "$ISO_XML" || fail "iso.xml missing MAP.BIN"
+grep -q 'name="MAP2.BIN"' "$ISO_XML" || fail "iso.xml missing MAP2.BIN"
+grep -q 'name="MAP3.BIN"' "$ISO_XML" || fail "iso.xml missing MAP3.BIN"
 grep -q 'name="PREFETC.TOC"' "$ISO_XML" || fail "iso.xml missing PREFETC.TOC"
 grep -q 'name="SFX.BIN"' "$ISO_XML" || fail "iso.xml missing SFX.BIN"
 
-grep -qE 'DOOMPS1_M[56]' "$ISO_XML" || fail "iso.xml volume not DOOMPS1_M5/M6"
+grep -qE 'DOOMPS1_M[56]' "$ISO_XML" || fail "iso.xml volume not DOOMPS1_M5/M6/M6X"
 
 # Prefer dumpsxiso when SDK env is loaded
 if command -v dumpsxiso >/dev/null 2>&1; then
@@ -33,6 +35,8 @@ if command -v dumpsxiso >/dev/null 2>&1; then
 	# dumpsxiso extracts; tolerate path variants
 	if dumpsxiso -x "$TMP" "$BIN" >/dev/null 2>&1 || dumpsxiso "$BIN" -x "$TMP" >/dev/null 2>&1; then
 		find "$TMP" -iname 'MAP.BIN' | grep -q . || fail "ISO extract missing MAP.BIN"
+		find "$TMP" -iname 'MAP2.BIN' | grep -q . || fail "ISO extract missing MAP2.BIN"
+		find "$TMP" -iname 'MAP3.BIN' | grep -q . || fail "ISO extract missing MAP3.BIN"
 		find "$TMP" -iname 'PREFETC.TOC' -o -iname 'PREFETCH.TOC' | grep -q . \
 			|| find "$TMP" -iname 'PREFETC*' | grep -q . \
 			|| fail "ISO extract missing PREFETC.TOC"
