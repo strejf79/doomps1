@@ -25,7 +25,7 @@ grep -q 'name="MAP.BIN"' "$ISO_XML" || fail "iso.xml missing MAP.BIN"
 grep -q 'name="PREFETC.TOC"' "$ISO_XML" || fail "iso.xml missing PREFETC.TOC"
 grep -q 'name="SFX.BIN"' "$ISO_XML" || fail "iso.xml missing SFX.BIN"
 
-grep -q 'DOOMPS1_M5' "$ISO_XML" || fail "iso.xml volume not DOOMPS1_M5"
+grep -qE 'DOOMPS1_M[56]' "$ISO_XML" || fail "iso.xml volume not DOOMPS1_M5/M6"
 
 # Prefer dumpsxiso when SDK env is loaded
 if command -v dumpsxiso >/dev/null 2>&1; then

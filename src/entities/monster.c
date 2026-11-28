@@ -3,6 +3,7 @@
  * Monsters from cooked map things; optional staggered AI.
  */
 #include "engine/entities.h"
+#include "engine/audio.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -164,6 +165,7 @@ void entities_tick(EntityWorld *ew, const World *w, Player *player, bool stagger
 				}
 				player->flash = 8;
 				m->cooldown = ATK_COOLDOWN;
+				audio_play_sfx(SFX_HURT);
 			}
 			if (m->state_t > 20) {
 				mon_set_state(m, MON_CHASE);

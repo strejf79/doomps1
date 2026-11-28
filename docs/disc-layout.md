@@ -16,7 +16,7 @@
 | `DATA/PREFETC.TOC` | Prefetch adjacency list |
 | `DATA/SFX.BIN` | Placeholder SFX bank header (M6 fills ADPCM) |
 
-Volume id: `DOOMPS1_M5`. Single Mode-2 data track. No CD-DA audio tracks yet (M6 may add later).
+Volume id: `DOOMPS1_M6` (was `DOOMPS1_M5` on the M5 PR). Single Mode-2 data track. SFX currently embed in the EXE via `.VAG` incbin; `DATA/SFX.BIN` remains a disc placeholder for a future streamed bank.
 
 ### Host checks
 

@@ -37,17 +37,17 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (plan M5 disc):** M4 slice + CD `DATA/` payloads, fail-soft map load from disc, prefetch stubs. Prefer **PAL** region.
+**Expected (plan M6 audio):** M5 disc path + **SPU ADPCM** weapon/hurt/footstep SFX and looping music stub (silence bed by default). Prefer **PAL**.
 
 | Input | Action |
 |-------|--------|
-| D-pad | Move / tank turn |
+| D-pad | Move / tank turn (footsteps) |
 | L1 / L2 / R2 | Strafe |
-| Cross / Square | Fire (chaingun full-auto while held) |
+| Cross / Square | Fire + weapon SFX |
 | Circle | Next weapon |
 | Triangle | Use door / elevator |
 
-Audio is silent until **M6**. Disc layout details: [`disc-layout.md`](./disc-layout.md).
+Disc layout: [`disc-layout.md`](./disc-layout.md). Regenerate SFX: `python3 tools/gen_vag_placeholders.py`.
 
 ```bash
 ./scripts/verify-disc-layout.sh   # after make
@@ -71,4 +71,4 @@ make
 - **Plan M3 budgeted:** cooker budgets, things/exit, LOD, muzzle FX  
 - **Plan M4:** doors/elevators, pickups, 3 weapons, staggered AI  
 - **Plan M5 (partial):** cue/bin `DATA/` layout, prefetch + fail-soft seeks, PAL notes (DuckStation proxy; no real hardware)  
-- **Plan M6:** SPU ADPCM SFX + music stub (next)  
+- **Plan M6:** SPU ADPCM SFX bank + silence/test music stub; weapon/hurt/footstep wired  

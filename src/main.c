@@ -1,8 +1,7 @@
 /*
  * Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
  *
- * Plan M5 disc scaffolding on M4 slice: prefetch + fail-soft CD path.
- * Audio remains stub until M6.
+ * Plan M6: SPU ADPCM SFX + music stub on M5 disc scaffolding.
  */
 #include "engine/audio.h"
 #include "engine/disc.h"
@@ -23,19 +22,24 @@
 static void fire_weapon(EntityWorld *ew, const World *w, Player *p, FxWorld *fx)
 {
 	i16 hit = 0;
+	SfxId sfx = SFX_PISTOL;
 	switch (p->weapon) {
 	case WPN_SHOTGUN:
 		hit = weapon_shotgun(ew, w, p);
+		sfx = SFX_SHOTGUN;
 		break;
 	case WPN_CHAINGUN:
 		hit = weapon_chaingun(ew, w, p);
+		sfx = SFX_CHAINGUN;
 		break;
 	default:
 		hit = weapon_hitscan(ew, w, p);
+		sfx = SFX_PISTOL;
 		break;
 	}
 	if (hit >= 0) {
 		fx_muzzle(fx, p);
+		audio_play_sfx(sfx);
 	}
 }
 
@@ -52,7 +56,7 @@ int main(int argc, const char **argv)
 	(void)argc;
 	(void)argv;
 
-	printf("doomps1 plan-M5: disc layout PAL %dx%d\n", SCREEN_W, SCREEN_H);
+	printf("doomps1 plan-M6: SPU audio PAL %dx%d\n", SCREEN_W, SCREEN_H);
 
 	plat_init();
 	disc_init();
