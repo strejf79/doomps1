@@ -265,9 +265,7 @@ void r_draw_world(const World *w, const Player *player)
 		}
 	}
 
-	(void)cam_s;
 	(void)walls_drawn;
-	(void)vis_n;
 }
 
 void r_draw_monsters(const World *w, const Player *player, const EntityWorld *ew)
