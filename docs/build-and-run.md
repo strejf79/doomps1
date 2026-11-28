@@ -37,7 +37,7 @@ Artifacts under `build/`:
 3. File → Boot CD Image → `build/doomps1.cue`.
 4. Enable TTY if you want the boot `printf`.
 
-**Expected (M1.5):** first-person walk between two rooms — **warm red** vs **cool cyan** static Gouraud tint; soft blend at the portal edge.
+**Expected (M2):** first-person walk in a **cooked FreeDoom E1M1 subset** (AABB floors, linedef walls, static tints). Fixture `maps/tworoom.json` still cooks for regression.
 
 | Input | Action |
 |-------|--------|
@@ -47,9 +47,18 @@ Artifacts under `build/`:
 
 On-screen font shows sector, light RGB, vis count, position. Audio is silent (stub).
 
+### Re-cook FreeDoom (host)
+
+```bash
+# Download FreeDoom IWAD yourself, then:
+python3 tools/cook_map.py --wad path/to/freedoom1.wad --map E1M1 \
+  --scale 8 --max-sectors 10 \
+  -o assets/maps/freedoom_e1m1.map.bin --embed src/resources/map_embedded.c
+make
+```
+
 ## Milestone notes
 
-- **M0:** clear + hello triangle  
-- **M1:** two rooms, portal flood, collision, GTE + double OT, dither off  
-- **M1.5:** per-sector RGB static lighting + vertex Gouraud (`POLY_G4`; `POLY_GT*` with atlases later)  
-- FreeDoom / WAD cooker: next milestone
+- **M0–M1.5:** hello tri → two-room walk → colored static lighting  
+- **M2:** WAD→`.map.bin` cooker + embedded FreeDoom E1M1 subset  
+- **M3:** combat loop (hitscan + monster) next

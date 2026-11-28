@@ -266,7 +266,7 @@ void r_draw_world(const World *w, const Player *player)
 
 	cam_s = (player->sector >= 0) ? &w->sectors[player->sector] : 0;
 
-	FntPrint(-1, "M1.5 static lighting\n");
+	FntPrint(-1, "M2 cooked map\n");
 	FntPrint(-1, "sec=%d vis=%d walls=%d\n", player->sector, vis_n, walls_drawn);
 	if (cam_s) {
 		FntPrint(-1, "light %d,%d,%d id=%d\n",

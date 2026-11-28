@@ -1,16 +1,12 @@
 # doomps1 — from-scratch PS1 Doom-style engine
 # Copyright (c) 2026 Johannes Brorsson. All Rights Reserved.
-#
-# Requires PSn00bSDK + Nugget (mipsel-none-elf). Set PSN00BSDK_LIBS, then:
-#   cmake --preset default .
-#   cmake --build ./build
 
 cmake_minimum_required(VERSION 3.21)
 
 project(
 	doomps1
 	LANGUAGES C
-	VERSION 0.1.0
+	VERSION 0.2.0
 	DESCRIPTION "From-scratch PS1 Doom-style engine (PAL 320x256)"
 )
 
@@ -24,6 +20,8 @@ set(ENGINE_SOURCES
 	src/world/world.c
 	src/world/map_tworoom.c
 	src/player/player.c
+	src/resources/mapbin.c
+	src/resources/map_embedded.c
 )
 
 psn00bsdk_add_executable(doomps1 GPREL ${ENGINE_SOURCES})
